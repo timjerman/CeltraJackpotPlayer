@@ -8,6 +8,6 @@ namespace celtraJackpotPlayer.Models
         {
         }
 
-        public DbSet<Game> Games { get; set; }s
+        public DbSet<Game> Games { get; set; }
     }
 }

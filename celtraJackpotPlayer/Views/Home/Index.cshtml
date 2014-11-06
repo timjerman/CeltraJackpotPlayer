@@ -1,0 +1,71 @@
+﻿@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Index</h2>
+
+@using (Html.BeginForm()) {
+
+    <div class="editor-label">
+        <label for="Address">Game Address</label>
+    </div>    
+    <div class="editor-field">
+        <input name="Address" id="Address" class="address-string"/>
+    </div>
+    <p>
+        <input type="submit" value="Create" class="post-play"/>
+    </p>
+}
+
+<h2>Log</h2>
+
+
+
+<h2>Statistics</h2>
+
+
+@section Scripts {
+
+    <script type="text/javascript">
+        $(function () {
+            // start the player on the server side
+            $('.post-play').on("click", function () {
+                
+                var dataString = 'test';
+
+                $('.address-string').hide();
+
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("Start", "Play")",
+                    data: dataString
+                })
+                    .success(function () {
+                        alert("Success");
+                        $('.address-string').show();
+                    })
+                    .error(function () {
+                        alert("Your bid has been rejected");
+                        $('.address-string').show();
+                    });
+
+                return false;
+            });
+
+
+
+            $.ajax({
+                type: "POST",
+                url: "@Url.Action("PlayerPlaying", "Play")",
+            })
+                .success(function (response) {
+                    if (response == "True") alert("It worked!")
+                    else alert("It didn't work.");
+                });
+
+
+
+        });
+
+    </script>
+}
