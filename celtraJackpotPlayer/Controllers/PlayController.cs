@@ -15,6 +15,8 @@ namespace celtraJackpotPlayer.Controllers
 
         public ActionResult Start()
         {
+
+            _SetPlayerPlayProgress(0);
             _SetPlayerPlayState(true);
 
             if (!Request.IsAjaxRequest())
@@ -27,7 +29,6 @@ namespace celtraJackpotPlayer.Controllers
             }
 
             _SetPlayerPlayState(false);
-            _SetPlayerPlayProgress(0)
 
             var httpStatus = ModelState.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
             return new HttpStatusCodeResult(httpStatus);

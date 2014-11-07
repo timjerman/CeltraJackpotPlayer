@@ -4,18 +4,21 @@
 
 <h2>Index</h2>
 
-@using (Html.BeginForm()) {
-
+<div class="post-form">
     <div class="editor-label">
         <label for="Address">Game Address</label>
     </div>    
     <div class="editor-field">
-        <input name="Address" id="Address" class="address-string"/>
+        <input name="Address" id="Address" class="post-address"/>
     </div>
     <p>
         <input type="submit" value="Create" class="post-play"/>
     </p>
-}
+</div>
+
+<div class="circular-progress">
+    <strong></strong>
+</div>
 
 <h2>Log</h2>
 
@@ -28,12 +31,43 @@
 
     <script type="text/javascript">
         $(function () {
-            // start the player on the server side
+
+            $('.circular-progress').hide();
+            isPlayerRunning();
+
+            // checks if the player is playing the game -> disable input if he is and show progress (prevent two games at the same time)
+            function isPlayerRunning() {
+
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("PlayerPlaying", "Play")",
+                })
+                    .success(function (response) {
+                        if (response == "True") {
+                            modifyPlayerProgress();
+                            $('.post-form').hide();
+                            $('.circular-progress').show();
+                        }
+                        else {
+                            $('.circular-progress').hide();
+                            $('.post-form').show();
+                        }
+                    })
+                    .error(function () {
+                        $('.circular-progress').hide();
+                        $('.post-form').show();
+                    });
+            }
+
+            // start the player on the server side + start the progress circle
             $('.post-play').on("click", function () {
                 
                 var dataString = 'test';
 
-                $('.address-string').hide();
+                $('.post-form').hide();
+
+                $('.circular-progress').show();
+                setCircularProgress(0);
 
                 $.ajax({
                     type: "POST",
@@ -42,28 +76,45 @@
                 })
                     .success(function () {
                         alert("Success");
-                        $('.address-string').show();
+                        $('.post-form').show();
+                        $('.circular-progress').hide();
                     })
                     .error(function () {
                         alert("Your bid has been rejected");
                         $('.address-string').show();
+                        $('.circular-progress').hide();
                     });
+
+                setTimeout(isPlayerRunning, 500);
 
                 return false;
             });
 
+            // check for player progress and update circular progressbar accordingly
+            function modifyPlayerProgress() {
 
+                    $.ajax({
+                        type: "POST",
+                        url: "@Url.Action("PlayerProgress", "Play")",
+                    })
+                            .success(function (response) {
+                                setCircularProgress(response);
+                                setTimeout(isPlayerRunning, 500);
+                            });
+            }
 
-            $.ajax({
-                type: "POST",
-                url: "@Url.Action("PlayerPlaying", "Play")",
-            })
-                .success(function (response) {
-                    if (response == "True") alert("It worked!")
-                    else alert("It didn't work.");
+            // set circular progressbar progress
+            function setCircularProgress(progressVal) {
+                progressVal = progressVal / 100.0;
+
+                $('.circular-progress').circleProgress({
+                    value: progressVal,
+                    fill: { gradient: ['#0681c4', '#07c6c1'] },
+                    animation: { duration: 0, easing: 'circleProgressEasing'}
+                }).on('circle-animation-progress', function (event, progress, stepValue) {
+                    $(this).find('strong').html(parseInt(String(stepValue.toFixed(2)).substr(1).valueOf() * 100) + '<i>%</i>');
                 });
-
-
+            }
 
         });
 
