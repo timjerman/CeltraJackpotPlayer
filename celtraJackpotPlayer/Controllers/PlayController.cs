@@ -25,11 +25,6 @@ namespace celtraJackpotPlayer.Controllers
 
 
             Game gameData = _InitializeGameData(address);
-            if (gameData == null)
-            {
-                _SetPlayerPlayState(false);
-                return Content("ERR", "text/plain");
-            }
 
             gameData.NumOfPlays++;
 
@@ -49,6 +44,8 @@ namespace celtraJackpotPlayer.Controllers
 
             gameData.Score[gameData.NumOfPlays - 1] = score;
 
+
+            gameData = _UpdateGameObjectForDbSave(gameData);
             if (gameData.NumOfPlays > 1)
                 _SaveGameToDb(gameData);
             else
@@ -62,7 +59,31 @@ namespace celtraJackpotPlayer.Controllers
 
         }
 
+        // convert all arrays in the game objects to strings so that they can be stored in the database
+        public Game _UpdateGameObjectForDbSave(Game gameData)
+        {
+            gameData.ScoreStr = _IntArrayToString(gameData.Score);
+            gameData.SectionsStr = _IntArrayToString(gameData.Sections);
+            gameData.ProbabilitiesStr = _IntMatrixToString(gameData.Probabilities);
+            gameData.SectionsScoreStr = _IntMatrixToString(gameData.SectionsScore);
+            gameData.SectionsCountStr = _IntMatrixToString(gameData.SectionsCount);
 
+            return gameData;
+        }
+
+        // convert all strings (needed for storing in the db) in the game object to arrays 
+        public Game _PrepareGameObjectForComputation(Game gameData)
+        {
+            gameData.Score = _StringToIntArray(gameData.ScoreStr);
+            gameData.Sections = _StringToIntArray(gameData.SectionsStr);
+            gameData.Probabilities = _StringToIntMatrix(gameData.ProbabilitiesStr);
+            gameData.SectionsScore = _StringToIntMatrix(gameData.SectionsScoreStr);
+            gameData.SectionsCount = _StringToIntMatrix(gameData.SectionsCountStr);
+
+            return gameData;
+        }
+
+        // load data from database or create a new object if the entry does not exist
         public Game _InitializeGameData(string address)
         {
             Game gameData = _GetGameFromDb(address);
@@ -82,12 +103,65 @@ namespace celtraJackpotPlayer.Controllers
                 gameData.isConstant = false;
                 gameData.Score = new int[100];
                 gameData.Sections = new int[100];
-                gameData.Probabilities = new float[gameData.Machines,100];
-                gameData.SectionsScore = new int[gameData.Machines,100];
-                gameData.SectionsCount = new int[gameData.Machines,100];
+                gameData.Probabilities = new int[gameData.Machines, 100];
+                gameData.SectionsScore = new int[gameData.Machines, 100];
+                gameData.SectionsCount = new int[gameData.Machines, 100];
             }
+            else gameData = _PrepareGameObjectForComputation(gameData);
 
             return gameData;
+        }
+
+        // convert int array to string -> for storing in the database
+        public string _IntArrayToString(int[] array)
+        {
+            return String.Join(";", new List<int>(array).ConvertAll(i => i.ToString()).ToArray());
+        }
+
+        // extract int array from string -> for storing in the database
+        public int[] _StringToIntArray(string str)
+        {
+            return str.Split(';').Select(n => Convert.ToInt32(n)).ToArray();
+        }
+
+        // convert int matrix to string -> for storing in the database
+        public string _IntMatrixToString(int[,] matrix)
+        {
+            string returnStr = "";
+
+            for (int i = 0; i < matrix.GetLength(0); i++)
+            {
+                int[] array = new int[matrix.GetLength(1)];
+                System.Buffer.BlockCopy(matrix, 4 * i * matrix.GetLength(1), array, 0, 4 * matrix.GetLength(1));
+
+                if (i > 0)
+                    returnStr = returnStr + ":" + _IntArrayToString(array);
+                else
+                    returnStr = _IntArrayToString(array);
+            }
+
+            return returnStr;
+        }
+
+        // extract matrix from string -> for storing in the database
+        public int[,] _StringToIntMatrix(string str)
+        {
+            string[] rowStr;
+            rowStr = str.Split(':');         
+
+            int columns = _StringToIntArray(rowStr[0]).Length;
+            int rows = rowStr.Length;
+            int[,] matrix = new int[rows,columns];
+
+            for (int i = 0; i < rows; i++)
+            {
+                int[] array = _StringToIntArray(rowStr[i]);
+
+                for (int j = 0; j < columns; j++)
+                    matrix[i,j] = array[j];
+            }
+
+            return matrix;
         }
 
         // retrieve model from database by address

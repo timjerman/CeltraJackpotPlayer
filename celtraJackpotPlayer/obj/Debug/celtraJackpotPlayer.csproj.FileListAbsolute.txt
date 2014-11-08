@@ -20,6 +20,8 @@ E:\celtraJackpotPlayer\celtraJackpotPlayer\bin\System.Web.Razor.xml
 E:\celtraJackpotPlayer\celtraJackpotPlayer\bin\System.Web.WebPages.xml
 E:\celtraJackpotPlayer\celtraJackpotPlayer\bin\System.Web.WebPages.Deployment.xml
 E:\celtraJackpotPlayer\celtraJackpotPlayer\bin\System.Web.WebPages.Razor.xml
-E:\celtraJackpotPlayer\celtraJackpotPlayer\obj\Debug\celtraJackpotPlayer.csprojResolveAssemblyReference.cache
 E:\celtraJackpotPlayer\celtraJackpotPlayer\obj\Debug\celtraJackpotPlayer.dll
 E:\celtraJackpotPlayer\celtraJackpotPlayer\obj\Debug\celtraJackpotPlayer.pdb
+E:\celtraJackpotPlayer\celtraJackpotPlayer\obj\Debug\celtraJackpotPlayer.csprojResolveAssemblyReference.cache
+E:\celtraJackpotPlayer\celtraJackpotPlayer\obj\Debug\celtraJackpotPlayer.Migrations.init.resources
+E:\celtraJackpotPlayer\celtraJackpotPlayer\obj\Debug\celtraJackpotPlayer.csproj.GenerateResource.Cache
