@@ -25,6 +25,11 @@ namespace celtraJackpotPlayer.Controllers
 
 
             Game gameData = _InitializeGameData(address);
+            if (gameData == null)
+            {
+                _SetPlayerPlayState(false);
+                return Content("ERR", "text/plain");
+            }
 
             gameData.NumOfPlays++;
 
@@ -52,11 +57,9 @@ namespace celtraJackpotPlayer.Controllers
                 _AddGameToDb(gameData);
 
             _SetPlayerPlayState(false);
-
-            
+            _AddLogToDb("score: " + score.ToString() + " (sum: " + _SumOfScores(gameData) + "), game: " + address);
 
             return Content(score.ToString(), "text/plain");
-
         }
 
         // convert all arrays in the game objects to strings so that they can be stored in the database
@@ -112,6 +115,15 @@ namespace celtraJackpotPlayer.Controllers
             return gameData;
         }
 
+        public int _SumOfScores(Game gameData)
+        {
+            int sum = 0;
+            for (int i = 0; i < gameData.NumOfPlays; i++)
+                sum += gameData.Score[i];
+
+            return sum;
+        }
+
         // convert int array to string -> for storing in the database
         public string _IntArrayToString(int[] array)
         {
@@ -164,6 +176,29 @@ namespace celtraJackpotPlayer.Controllers
             return matrix;
         }
 
+
+        // retrieve all logs from the database
+        public List<Log> _GetLogsFromDb()
+        {
+            var db = new GameContext();
+            return db.Logs.OrderByDescending(x => x.LogID).ToList();
+        }
+
+        // add a new log entry to the database
+        public void _AddLogToDb(string message)
+        {
+            Log log = new Log();
+            log.Message = message;
+            log.LogTime = System.DateTime.Now;
+
+            var db = new GameContext();
+            db.Logs.Add(log);
+            db.SaveChanges();
+
+            return;
+        }
+
+
         // retrieve model from database by address
         public Game _GetGameFromDb(string address)
         {
@@ -203,13 +238,12 @@ namespace celtraJackpotPlayer.Controllers
             }
             catch (WebException ex)
             {
-                // TODO: log this error
-                string error = ex.ToString();
+                _AddLogToDb("Error: " + ex.ToString());
             }
 
             if (response.Equals("ERR") || response.Equals(""))
             {
-                // TODO: log this error
+                _AddLogToDb("Error: ERR string returned from address!");
                 return -1;
             }
 
@@ -233,7 +267,6 @@ namespace celtraJackpotPlayer.Controllers
 
         public void _SetPlayerPlayState(bool state)
         {
-
             HttpRuntime.Cache.Insert("PlayerPlaying", state);
         }
 
@@ -261,6 +294,26 @@ namespace celtraJackpotPlayer.Controllers
             if (retVal == null) return 0;
 
             return (int) retVal;
+        }
+
+        // GET: /Play/Log
+
+        public ActionResult Log()
+        {
+            List<Log> logs = _GetLogsFromDb();
+
+            return PartialView("_LogPartial", logs);
+        }
+
+        protected override void OnException(ExceptionContext filterContext)
+        {
+            //If the exeption is already handled we do nothing
+            if (filterContext.ExceptionHandled)
+                return;
+            else
+                _AddLogToDb("Error: " + filterContext.Exception.ToString());
+
+            filterContext.ExceptionHandled = true;
         }
 
     }

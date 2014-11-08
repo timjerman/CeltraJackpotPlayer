@@ -9,5 +9,6 @@ namespace celtraJackpotPlayer.Models
         }
 
         public DbSet<Game> Games { get; set; }
+        public DbSet<Log> Logs { get; set; }
     }
 }

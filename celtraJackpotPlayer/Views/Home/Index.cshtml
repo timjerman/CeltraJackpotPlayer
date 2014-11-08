@@ -22,17 +22,17 @@
 
 <h2>Log</h2>
 
-
+<div class="log-section"></div>
 
 <h2>Statistics</h2>
 
 
 @section Scripts {
-
     <script type="text/javascript">
         $(function () {
 
             $('.circular-progress').hide();
+            updateLog();
             isPlayerRunning();
 
             // checks if the player is playing the game -> disable input if he is and show progress (prevent two games at the same time)
@@ -75,12 +75,13 @@
                     data: dataString
                 })
                     .success(function (response) {
-                        alert("Score="+response);
+                        updateLog();
                         $('.post-form').show();
                         $('.circular-progress').hide();
                     })
                     .error(function () {
-                        alert("Your bid has been rejected");
+                        updateLog();
+                        alert("There was an error.\nPlease look at the log message.");
                         $('.address-string').show();
                         $('.circular-progress').hide();
                     });
@@ -97,10 +98,10 @@
                         type: "POST",
                         url: "@Url.Action("PlayerProgress", "Play")",
                     })
-                            .success(function (response) {
-                                setCircularProgress(response);
-                                setTimeout(isPlayerRunning, 500);
-                            });
+                        .success(function (response) {
+                            setCircularProgress(response);
+                            setTimeout(isPlayerRunning, 500);
+                        });
             }
 
             // set circular progressbar progress
@@ -115,6 +116,23 @@
                     $(this).find('strong').html(parseInt(String(stepValue.toFixed(2)).substr(1).valueOf() * 100) + '<i>%</i>');
                 });
             }
+
+            function updateLog() {
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("Log", "Play")",
+                    data: ""
+                })
+                    .success(function (response) {
+                        $('.log-section').replaceWith(response);
+                    })
+                    .error(function () {
+                        $('.log-section').replaceWith('<div class="log-section">Log could not be displayed!</div>');
+                    });
+            }
+
+
+
 
         });
 

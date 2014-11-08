@@ -1,0 +1,26 @@
+﻿@model IEnumerable<celtraJackpotPlayer.Models.Log>
+
+<div class="log-section">
+    <table>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.LogTime)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Message)
+            </th>
+            <th></th>
+        </tr>
+
+    @foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.LogTime)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Message)
+            </td>
+        </tr>
+    }
+    </table>
+</div>
