@@ -1,4 +1,4 @@
-SelectioGamePlayer
+Celtra Jackpot Player
 ==================
 
-The submission for the 2014 FRI challenge
+The submission for the 2014 Celtra-FRI challenge

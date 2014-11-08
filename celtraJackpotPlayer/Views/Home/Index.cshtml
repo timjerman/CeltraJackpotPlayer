@@ -74,8 +74,8 @@
                     url: "@Url.Action("Start", "Play")",
                     data: dataString
                 })
-                    .success(function () {
-                        alert("Success");
+                    .success(function (response) {
+                        alert("Score="+response);
                         $('.post-form').show();
                         $('.circular-progress').hide();
                     })

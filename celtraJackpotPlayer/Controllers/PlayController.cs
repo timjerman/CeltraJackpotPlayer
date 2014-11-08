@@ -11,30 +11,62 @@ namespace celtraJackpotPlayer.Controllers
     public class PlayController : Controller
     {
         //
-        // GET: /Play/
+        // GET: /Play/Start
 
-        public ActionResult Start()
+        public object Start()//(string address)
         {
-
             _SetPlayerPlayProgress(0);
             _SetPlayerPlayState(true);
 
-            if (!Request.IsAjaxRequest())
-                return RedirectToAction("Index", "Home");
+            string address = "http://celtra-jackpot.com/1";
 
-            for (int i = 1; i <= 10; i++)
+            int score = 0;
+            int progress = 0;
+            int pulls = _GetPullsNumber(address);
+            int machines = _GetMachinesNumber(address);
+            
+            // if negative
+
+            for (int pullNumber = 1; pullNumber <= pulls; pullNumber++)
             {
-                _SetPlayerPlayProgress(i * 10);
-                Thread.Sleep(1000);
+                score += _GetMachinePullScore(address, 1, pullNumber);
+
+                if (pullNumber % (pulls/100) == 0)
+                    _SetPlayerPlayProgress(++progress);
             }
 
             _SetPlayerPlayState(false);
 
-            var httpStatus = ModelState.IsValid ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
-            return new HttpStatusCodeResult(httpStatus);
+            return Content(score.ToString(), "text/plain");
 
         }
 
+        // call the url and convert the response to a number
+        public int _GetValueFromUrl(string address)
+        {
+            WebClient client = new WebClient();
+            string response = client.DownloadString(address);
+
+            if (response.Equals("ERR") || response.Equals(""))
+                return -1;
+
+            return int.Parse(response);
+        }
+
+        public int _GetPullsNumber(string address)
+        {
+            return _GetValueFromUrl(address + "/pulls");
+        }
+
+        public int _GetMachinesNumber(string address)
+        {
+            return _GetValueFromUrl(address + "/machines");
+        }
+
+        public int _GetMachinePullScore(string address, int machine, int pull)
+        {
+            return _GetValueFromUrl(address + "/" + machine.ToString() + "/" + pull.ToString());
+        }
 
         public void _SetPlayerPlayState(bool state)
         {
@@ -49,6 +81,7 @@ namespace celtraJackpotPlayer.Controllers
             HttpRuntime.Cache.Insert("PlayerProgress", progess);
         }
 
+        // GET: /Play/PlayerPlaying
         public bool PlayerPlaying()
         {
             bool? retVal = HttpRuntime.Cache.Get("PlayerPlaying") as bool?;
@@ -58,7 +91,7 @@ namespace celtraJackpotPlayer.Controllers
             return (bool) retVal;
         }
 
-
+        // GET: /Play/PlayerProgress
         public int PlayerProgress()
         {
             int? retVal = HttpRuntime.Cache.Get("PlayerProgress") as int?;
