@@ -1,26 +1,49 @@
 ﻿@model IEnumerable<celtraJackpotPlayer.Models.Log>
 
-<div class="log-section">
-    <table>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.LogTime)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Message)
-            </th>
-            <th></th>
-        </tr>
+@{
+    var alertType = Model.First().IsSuccess ? "alert-success" : "alert-danger";
+}
 
-    @foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.LogTime)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.Message)
-            </td>
-        </tr>
-    }
-    </table>
+<div class="log-section">
+    <div class="log-alert">
+        <div class="alert @alertType" role="alert"> 
+            <strong>@Model.First().LogTime</strong>
+            <div>
+                @Model.First().Message
+            </div>    
+        </div>
+    </div>
+
+    <div class="collapse" id="log-table">
+        <div class="log-table-limited">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>
+                            @Html.DisplayNameFor(model => model.LogTime)
+                        </th>
+                        <th>
+                            @Html.DisplayNameFor(model => model.Message)
+                        </th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+            @foreach (var item in Model) {
+                    <tr>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.LogTime)
+                        </td>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Message)
+                        </td>
+                    </tr>
+            }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <button type="button" id="expand-log" class="btn" data-toggle="collapse" data-target="#log-table">
+        <span class="glyphicon glyphicon-chevron-down"></span> Expand Log History
+    </button>
 </div>

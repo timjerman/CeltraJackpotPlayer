@@ -57,7 +57,7 @@ namespace celtraJackpotPlayer.Controllers
                 _AddGameToDb(gameData);
 
             _SetPlayerPlayState(false);
-            _AddLogToDb("score: " + score.ToString() + " (sum: " + _SumOfScores(gameData) + "), game: " + address);
+            _AddLogToDb("score: " + score.ToString() + " (sum: " + _SumOfScores(gameData) + "), game: " + address, true);
 
             return Content(score.ToString(), "text/plain");
         }
@@ -181,15 +181,18 @@ namespace celtraJackpotPlayer.Controllers
         public List<Log> _GetLogsFromDb()
         {
             var db = new GameContext();
-            return db.Logs.OrderByDescending(x => x.LogID).ToList();
+            List<Log> returnList = db.Logs.OrderByDescending(x => x.LogID).Take(20).ToList();
+
+            return returnList;
         }
 
         // add a new log entry to the database
-        public void _AddLogToDb(string message)
+        public void _AddLogToDb(string message, bool isSuccess)
         {
             Log log = new Log();
             log.Message = message;
             log.LogTime = System.DateTime.Now;
+            log.IsSuccess = isSuccess;
 
             var db = new GameContext();
             db.Logs.Add(log);
@@ -238,12 +241,12 @@ namespace celtraJackpotPlayer.Controllers
             }
             catch (WebException ex)
             {
-                _AddLogToDb("Error: " + ex.ToString());
+                _AddLogToDb("Error: " + ex.ToString(), false);
             }
 
             if (response.Equals("ERR") || response.Equals(""))
             {
-                _AddLogToDb("Error: ERR string returned from address!");
+                _AddLogToDb("Error: ERR string returned from address!", false);
                 return -1;
             }
 
@@ -311,7 +314,7 @@ namespace celtraJackpotPlayer.Controllers
             if (filterContext.ExceptionHandled)
                 return;
             else
-                _AddLogToDb("Error: " + filterContext.Exception.ToString());
+                _AddLogToDb("Error: " + filterContext.Exception.ToString(), false);
 
             filterContext.ExceptionHandled = true;
         }

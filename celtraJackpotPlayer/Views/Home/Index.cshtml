@@ -1,37 +1,85 @@
 ﻿@{
-    ViewBag.Title = "Index";
+    ViewBag.Title = "Celtra Jackpot Player";
 }
 
-<h2>Index</h2>
+<h2>@ViewBag.Title</h2>
 
-<div class="post-form">
-    <div class="editor-label">
-        <label for="Address">Game Address</label>
-    </div>    
-    <div class="editor-field">
-        <input name="Address" id="Address" class="post-address"/>
+<form class="form-horizontal" role="form" id="post-form">
+  <div class="form-group">
+    <label class="control-label col-sm-2" for="inputSuccess3">Game Server:</label>
+    <div class="col-sm-6">
+        <input class="form-control" placeholder="Address" type="text" id="Address">
+        </div>
+      <div class="col-sm-">
+        <button class="btn btn-default" type="submit" id="post-play">Play</button>
     </div>
-    <p>
-        <input type="submit" value="Create" class="post-play"/>
-    </p>
-</div>
+  </div>
+</form>
+<!--
+<form class="form-inline" id="post-form">
+    <label class="control-label" for="Address">Game Server: </label> &nbsp;
+    <input class="form-control input-large" placeholder="Address" type="text" id="Address"> &nbsp;
+    <button class="btn btn-default" type="submit" id="post-play">Play</button>
+</form>
+-->
 
-<div class="circular-progress">
-    <strong></strong>
+<div class="row" id="circular-progress-main">
+    <div class="col-md-2 col-md-offset-5">
+        <div class="circular-progress">
+            <strong></strong>
+        </div>
+    </div>
 </div>
 
 <h2>Log</h2>
 
-<div class="log-section"></div>
+<div class="log-parent">
+    <div class="log-section">
+        <div class="log-alert">
+            <div class="alert alert-info" role="alert"> 
+                <strong>No entries</strong>
+                <div>
+                    Currently there are no log entries.
+                </div>    
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
 
 <h2>Statistics</h2>
+
+
+<!-- Modal -->
+<div class="modal fade" id="alertModal" tabindex="-1" role="dialog" aria-labelledby="alertModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content panel-danger">
+      <div class="modal-header panel-heading">
+        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        <h4 class="modal-title" id="alertModalLabel">Error</h4>
+      </div>
+      <div class="modal-body">
+        An error occured. Please check the log.  
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 @section Scripts {
     <script type="text/javascript">
         $(function () {
 
-            $('.circular-progress').hide();
+            $('#circular-progress-main').hide();
+            
             updateLog();
             isPlayerRunning();
 
@@ -45,28 +93,28 @@
                     .success(function (response) {
                         if (response == "True") {
                             modifyPlayerProgress();
-                            $('.post-form').hide();
-                            $('.circular-progress').show();
+                            $('#post-form').hide();
+                            $('#circular-progress-main').show();
                         }
                         else {
-                            $('.circular-progress').hide();
-                            $('.post-form').show();
+                            $('#circular-progress-main').hide();
+                            $('#post-form').show();
                         }
                     })
                     .error(function () {
-                        $('.circular-progress').hide();
-                        $('.post-form').show();
+                        $('#circular-progress-main').hide();
+                        $('#post-form').show();
                     });
             }
 
             // start the player on the server side + start the progress circle
-            $('.post-play').on("click", function () {
+            $('#post-play').on("click", function () {
                 
-                var dataString = 'test';
+                var dataString = 'address';
 
-                $('.post-form').hide();
+                $('#post-form').hide();
 
-                $('.circular-progress').show();
+                $('#circular-progress-main').show();
                 setCircularProgress(0);
 
                 $.ajax({
@@ -76,14 +124,14 @@
                 })
                     .success(function (response) {
                         updateLog();
-                        $('.post-form').show();
-                        $('.circular-progress').hide();
+                        $('#post-form').show();
+                        $('#circular-progress-main').hide();
                     })
                     .error(function () {
                         updateLog();
-                        alert("There was an error.\nPlease look at the log message.");
-                        $('.address-string').show();
-                        $('.circular-progress').hide();
+                        $('#alertModal').modal('toggle');
+                        $('#post-form').show();
+                        $('#circular-progress-main').hide();
                     });
 
                 setTimeout(isPlayerRunning, 500);
@@ -127,13 +175,21 @@
                         $('.log-section').replaceWith(response);
                     })
                     .error(function () {
-                        $('.log-section').replaceWith('<div class="log-section">Log could not be displayed!</div>');
+                        $('.log-section').replaceWith('<div class="log-section"><div class="log-alert"><div class="alert alert-info" role="alert"><strong>Connection error</strong><div>Log could not be displayed!</div></div></div></div>');
                     });
             }
 
 
+            $('.log-parent').on('click', '#expand-log', function () {
+                if ($('button span').hasClass('glyphicon-chevron-down')) {
+                    $('#expand-log').html('<span class="glyphicon glyphicon-chevron-up"></span> Close Log History');
+                }
+                else {
+                    $('#expand-log').html('<span class="glyphicon glyphicon-chevron-down"></span> Expand Log History');
+                }
+            });
 
-
+            
         });
 
     </script>

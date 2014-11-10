@@ -13,5 +13,6 @@ namespace celtraJackpotPlayer.Models
 
         [DisplayName("Date")]
         public DateTime LogTime { get; set; }
+        public bool IsSuccess { get; set; }
     }
 }
