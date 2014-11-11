@@ -31,10 +31,15 @@
 }
 
 .log-table-limited {
-    height: 200px;
+    height: 300px;
     margin-top: 10px;
     overflow: auto;
     position: relative;
+}
+
+.jumbotron {
+    padding-top: 5px;
+    padding-bottom: 15px;
 }
 
 /* conflict with bootstrap */

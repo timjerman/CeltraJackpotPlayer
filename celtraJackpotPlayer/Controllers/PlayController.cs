@@ -17,13 +17,12 @@ namespace celtraJackpotPlayer.Controllers
 
         public object Start()//(string address)
         {
-            _SetPlayerPlayProgress(0);
             _SetPlayerPlayState(true);
+            _SetPlayerPlayProgress(0);
 
-            string address = "http://celtra-jackpot.com/1";
-            bool isGameNew = false;
+            string address = "http://celtra-jackpot.com/5";
 
-
+            // load game from db if exists else initialiaze a new object
             Game gameData = _InitializeGameData(address);
             if (gameData == null)
             {
@@ -31,36 +30,51 @@ namespace celtraJackpotPlayer.Controllers
                 return Content("ERR", "text/plain");
             }
 
-            gameData.NumOfPlays++;
+            // main call
+            gameData = _TestPlay(gameData);
 
-            int score = 0;
-            int progress = 0;
-            
-            // if negative
-
-            for (int pullNumber = 1; pullNumber <= gameData.Pulls; pullNumber++)
+            // check for success
+            if (gameData == null)
             {
-                score += _GetMachinePullScore(address, 1, pullNumber);
-
-                if (pullNumber % (gameData.Pulls / 100) == 0)
-                    _SetPlayerPlayProgress(++progress);
+                _SetPlayerPlayState(false);
+                return Content("ERR", "text/plain");
             }
-
-
-            gameData.Score[gameData.NumOfPlays - 1] = score;
-
-
+            
+            // store data and return last score
             gameData = _UpdateGameObjectForDbSave(gameData);
             if (gameData.NumOfPlays > 1)
                 _SaveGameToDb(gameData);
             else
                 _AddGameToDb(gameData);
 
+            int resultingScore = gameData.Score[gameData.NumOfPlays - 1];
+            _AddLogToDb("score: " + resultingScore.ToString() + " (sum: " + _SumOfScores(gameData) + "), game: " + address, true);
             _SetPlayerPlayState(false);
-            _AddLogToDb("score: " + score.ToString() + " (sum: " + _SumOfScores(gameData) + "), game: " + address, true);
 
-            return Content(score.ToString(), "text/plain");
+            return Content(resultingScore.ToString(), "text/plain");
         }
+
+        // a simple test of calling the game server and summing through the first machine
+        private Game _TestPlay(Game gameData)
+        {
+            gameData.NumOfPlays++;
+
+            int score = 0;
+            int progress = 0;
+
+            for (int pullNumber = 1; pullNumber <= gameData.Pulls; pullNumber++)
+            {
+                score += _GetMachinePullScore(gameData.GameLocation, 1, pullNumber);
+
+                if (pullNumber % (gameData.Pulls / 100) == 0)
+                    _SetPlayerPlayProgress(++progress);
+            }
+
+            gameData.Score[gameData.NumOfPlays - 1] = score;
+
+            return gameData;
+        }
+
 
         // convert all arrays in the game objects to strings so that they can be stored in the database
         public Game _UpdateGameObjectForDbSave(Game gameData)
@@ -115,6 +129,7 @@ namespace celtraJackpotPlayer.Controllers
             return gameData;
         }
 
+        // sum all scores from the game with the same address
         public int _SumOfScores(Game gameData)
         {
             int sum = 0;
@@ -181,7 +196,7 @@ namespace celtraJackpotPlayer.Controllers
         public List<Log> _GetLogsFromDb()
         {
             var db = new GameContext();
-            List<Log> returnList = db.Logs.OrderByDescending(x => x.LogID).Take(20).ToList();
+            List<Log> returnList = db.Logs.OrderByDescending(x => x.LogID).Take(40).ToList();
 
             return returnList;
         }
@@ -279,14 +294,19 @@ namespace celtraJackpotPlayer.Controllers
             HttpRuntime.Cache.Insert("PlayerProgress", progess);
         }
 
-        // GET: /Play/PlayerPlaying
-        public bool PlayerPlaying()
+        public bool _GetPlayerPlayState()
         {
             bool? retVal = HttpRuntime.Cache.Get("PlayerPlaying") as bool?;
 
             if (retVal == null) return false;
 
-            return (bool) retVal;
+            return (bool)retVal;
+        }
+
+        // GET: /Play/PlayerPlaying
+        public bool PlayerPlaying()
+        {
+            return _GetPlayerPlayState();
         }
 
         // GET: /Play/PlayerProgress

@@ -2,8 +2,11 @@
     ViewBag.Title = "Celtra Jackpot Player";
 }
 
-<h2>@ViewBag.Title</h2>
+<div class="jumbotron">
+  <h2>@ViewBag.Title</h2>
+</div>
 
+<!-- form for submiting the game address -->
 <form class="form-horizontal" role="form" id="post-form">
   <div class="form-group">
     <label class="control-label col-sm-2" for="inputSuccess3">Game Server:</label>
@@ -15,14 +18,8 @@
     </div>
   </div>
 </form>
-<!--
-<form class="form-inline" id="post-form">
-    <label class="control-label" for="Address">Game Server: </label> &nbsp;
-    <input class="form-control input-large" placeholder="Address" type="text" id="Address"> &nbsp;
-    <button class="btn btn-default" type="submit" id="post-play">Play</button>
-</form>
--->
 
+<!-- when game is running a progress bar will be displayed -->
 <div class="row" id="circular-progress-main">
     <div class="col-md-2 col-md-offset-5">
         <div class="circular-progress">
@@ -31,8 +28,10 @@
     </div>
 </div>
 
+
 <h2>Log</h2>
 
+<!-- this log section will be replaced by the _LogPartial with log information from the db-->
 <div class="log-parent">
     <div class="log-section">
         <div class="log-alert">
@@ -48,14 +47,13 @@
 
 
 
-
-
-
-
 <h2>Statistics</h2>
 
 
-<!-- Modal -->
+
+
+<!-- -->
+<!-- Modal dialog for error messaging -->
 <div class="modal fade" id="alertModal" tabindex="-1" role="dialog" aria-labelledby="alertModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content panel-danger">
@@ -64,7 +62,7 @@
         <h4 class="modal-title" id="alertModalLabel">Error</h4>
       </div>
       <div class="modal-body">
-        An error occured. Please check the log.  
+        An error occured. Please check the log if more information is available.  
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -80,6 +78,7 @@
 
             $('#circular-progress-main').hide();
             
+            // at the begining: update log + check if there is already a game running
             updateLog();
             isPlayerRunning();
 
@@ -99,11 +98,13 @@
                         else {
                             $('#circular-progress-main').hide();
                             $('#post-form').show();
+                            updateLog();
                         }
                     })
                     .error(function () {
                         $('#circular-progress-main').hide();
                         $('#post-form').show();
+                        $('#alertModal').modal('toggle');
                     });
             }
 
@@ -165,6 +166,7 @@
                 });
             }
 
+            // retrieve latest logs from database and display them
             function updateLog() {
                 $.ajax({
                     type: "POST",
@@ -179,7 +181,7 @@
                     });
             }
 
-
+            // expansion of log table
             $('.log-parent').on('click', '#expand-log', function () {
                 if ($('button span').hasClass('glyphicon-chevron-down')) {
                     $('#expand-log').html('<span class="glyphicon glyphicon-chevron-up"></span> Close Log History');
