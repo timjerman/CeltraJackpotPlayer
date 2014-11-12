@@ -3,20 +3,20 @@
 }
 
 <div class="jumbotron">
-  <h2>@ViewBag.Title</h2>
+    <h2>@ViewBag.Title</h2>
 </div>
 
 <!-- form for submiting the game address -->
 <form class="form-horizontal" role="form" id="post-form">
-  <div class="form-group">
-    <label class="control-label col-sm-2" for="inputSuccess3">Game Server:</label>
-    <div class="col-sm-6">
-        <input class="form-control" placeholder="Address" type="text" id="Address">
+    <div class="form-group">
+        <label class="control-label col-sm-2" for="inputSuccess3">Game Server:</label>
+        <div class="col-sm-6">
+            <input class="form-control" placeholder="Address" type="text" id="Address">
         </div>
-      <div class="col-sm-">
-        <button class="btn btn-default" type="submit" id="post-play">Play</button>
+        <div class="col-sm-">
+            <button class="btn btn-default" type="submit" id="post-play">Play</button>
+        </div>
     </div>
-  </div>
 </form>
 
 <!-- when game is running a progress bar will be displayed -->
@@ -35,11 +35,11 @@
 <div class="log-parent">
     <div class="log-section">
         <div class="log-alert">
-            <div class="alert alert-info" role="alert"> 
+            <div class="alert alert-info" role="alert">
                 <strong>No entries</strong>
                 <div>
                     Currently there are no log entries.
-                </div>    
+                </div>
             </div>
         </div>
     </div>
@@ -55,20 +55,20 @@
 <!-- -->
 <!-- Modal dialog for error messaging -->
 <div class="modal fade" id="alertModal" tabindex="-1" role="dialog" aria-labelledby="alertModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content panel-danger">
-      <div class="modal-header panel-heading">
-        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-        <h4 class="modal-title" id="alertModalLabel">Error</h4>
-      </div>
-      <div class="modal-body">
-        An error occured. Please check the log if more information is available.  
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-      </div>
+    <div class="modal-dialog">
+        <div class="modal-content panel-danger">
+            <div class="modal-header panel-heading">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="alertModalLabel">Error</h4>
+            </div>
+            <div class="modal-body">
+                An error occured. Please check the log if more information is available.  
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 
 
@@ -77,7 +77,7 @@
         $(function () {
 
             $('#circular-progress-main').hide();
-            
+
             // at the begining: update log + check if there is already a game running
             updateLog();
             isPlayerRunning();
@@ -110,7 +110,7 @@
 
             // start the player on the server side + start the progress circle
             $('#post-play').on("click", function () {
-                
+
                 var dataString = 'address';
 
                 $('#post-form').hide();
@@ -143,15 +143,15 @@
             // check for player progress and update circular progressbar accordingly
             function modifyPlayerProgress() {
 
-                    $.ajax({
-                        type: "POST",
-                        url: "@Url.Action("PlayerProgress", "Play")",
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("PlayerProgress", "Play")",
                     })
                         .success(function (response) {
                             setCircularProgress(response);
                             setTimeout(isPlayerRunning, 500);
                         });
-            }
+                }
 
             // set circular progressbar progress
             function setCircularProgress(progressVal) {
@@ -160,7 +160,7 @@
                 $('.circular-progress').circleProgress({
                     value: progressVal,
                     fill: { gradient: ['#0681c4', '#07c6c1'] },
-                    animation: { duration: 0, easing: 'circleProgressEasing'}
+                    animation: { duration: 0, easing: 'circleProgressEasing' }
                 }).on('circle-animation-progress', function (event, progress, stepValue) {
                     $(this).find('strong').html(parseInt(String(stepValue.toFixed(2)).substr(1).valueOf() * 100) + '<i>%</i>');
                 });
@@ -191,7 +191,7 @@
                 }
             });
 
-            
+
         });
 
     </script>
