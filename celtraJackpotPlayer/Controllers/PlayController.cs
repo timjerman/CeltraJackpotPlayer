@@ -23,7 +23,7 @@ namespace celtraJackpotPlayer.Controllers
             _SetPlayerPlayState(true);
             _SetPlayerPlayProgress(0);
 
-            string address = "http://celtra-jackpot.com/1";
+            string address = "http://celtra-jackpot.com/5";
 
             // load game from db if exists else initialiaze a new object
             Game gameData = _InitializeGameData(address);
@@ -74,8 +74,8 @@ namespace celtraJackpotPlayer.Controllers
             double lowProbabilityThr = 0.05; // the threshold to distinguish between two modes -> for low probabilities less confidently assign weights
             double kolSmiThr = 0.5; // threshold for the kolmogorov smirnov test for testing if the probabilities are konstant
             double partDiffThr = 0.06; //threshold for the second constant probability test
-            byte averageProbabilitiesThr = 20;  // if th section number is high it can be beneficial to average
             double initFactThrToCut = 0.7;  // for constant distributions: if the second highest probability / the highest probability is greater than this factor only use the best machine
+            double maxFactThrToCut = 0.95;
             double sectProbThr = 0.2; // initial threshold for thresholding low probabilities
 
             int score = 0;
@@ -96,7 +96,7 @@ namespace celtraJackpotPlayer.Controllers
                 // initially all machines are pulled with the same probability
                 for (int machine = 0; machine < gameData.Machines; machine++)
                 {
-                    gameData.Probabilities[0, machine] = 100 / gameData.Machines;   // probabilities are converted to cummulative sum
+                    gameData.Probabilities[0, machine] = 1000 / gameData.Machines;   // probabilities are converted to cummulative sum
                     if (machine > 0)
                         gameData.Probabilities[0, machine] += gameData.Probabilities[0, machine - 1];
                 }
@@ -106,13 +106,14 @@ namespace celtraJackpotPlayer.Controllers
                 bool searhForNewSection = true;
                 bool forceNewSection = false;
                 int sectionIndex = 0;
-                int expextedSectionIndex = 0;
+                int expextedSectionIndex = 1;
+                int pullFromLastNewSection = 0;
                 int[] scorePerSection = new int[gameData.Machines];
 
                 // go through all availible pulls and set the section
                 for (int pull = 1; pull <= gameData.Pulls; pull++)
                 {
-
+                    pullFromLastNewSection++;
                     byte selectedMachine = _selectMachine(gameData.Probabilities, 0);
 
                     int machineScore = _GetMachinePullScore(gameData.GameLocation, selectedMachine, pull);
@@ -138,6 +139,7 @@ namespace celtraJackpotPlayer.Controllers
                     if (pull == gameData.Sections[sectionIndex])
                     {
                         sectionIndex++;
+                        pullFromLastNewSection = 0;
                         for (int i = 0; i < scorePerSection.Length; i++) //reset
                             scorePerSection[i] = 0;
                         searhForNewSection = true;
@@ -146,7 +148,7 @@ namespace celtraJackpotPlayer.Controllers
                     }
 
                     // lets make the sections at least the size of all pulls / maxSectionFraction
-                    if ((pull % (gameData.Pulls / maxSectionFraction - 1)) == 0 && scorePerSection.Max() > 0)
+                    if ((pullFromLastNewSection >= (gameData.Pulls / maxSectionFraction - 1)) && scorePerSection.Max() > sectionStopCriteria / 2)
                     {
                         if (sectionIndex < expextedSectionIndex)
                         {
@@ -164,7 +166,7 @@ namespace celtraJackpotPlayer.Controllers
                 _SetPlayerPlayProgress(99);
 
                 if (gameData.Sections[sectionIndex - 1] != gameData.Pulls)
-                    gameData.Sections[sectionIndex - 1] = gameData.Pulls;
+                    gameData.Sections[sectionIndex] = gameData.Pulls;
                 else
                     sectionIndex--;
 
@@ -186,7 +188,7 @@ namespace celtraJackpotPlayer.Controllers
                         gameData.SectionsCount[sectionIndex - 1, i] += gameData.SectionsCount[sectionIndex, i];
                         gameData.SectionsCount[sectionIndex, i] = 0;
                     }
-                    gameData.Sections[sectionIndex - 1] += gameData.Sections[sectionIndex];
+                    gameData.Sections[sectionIndex - 1] = gameData.Sections[sectionIndex];
                     gameData.Sections[sectionIndex] = 0;
                     sectionIndex--;
                 }
@@ -201,87 +203,90 @@ namespace celtraJackpotPlayer.Controllers
 
                 // --------------------------   COMPUTE WEIGHTS FOR THE NEXT PASS   -----------------------------------------------------------------------------
 
-                // for low probabilities still use the uniform distribution in the second pass
-                if (isLowProbability)
+
+                // probabilities from the section scores
+                double[,] sectionProbabilities = _ComputeSectionProbabilites(gameData);
+
+                // check if section probabilities are constant
+                gameData.isConstant = _isReturnProbabilityConstant(gameData, sectionProbabilities, kolSmiThr, partDiffThr);
+
+                // average probabilities
+                if (gameData.isConstant != isProbabilityConstant.NotConstant)
+                    sectionProbabilities = _AverageProbabilities(sectionProbabilities, gameData);
+
+                double[] sumPerMachine = new double[gameData.Machines];
+
+                // normalize so that sum for same section is 1
+                for (int sect = 0; sect < gameData.NumOfSections; sect++)
                 {
-                    int[,] sectionProbabilities = new int[gameData.NumOfSections, gameData.Machines];
-
-                    for (int sect = 0; sect < gameData.NumOfSections; sect++)
-                        for (int machine = 0; machine < gameData.Machines; machine++)
-                            sectionProbabilities[sect, machine] = gameData.Probabilities[0, machine];
-
-                    gameData.Probabilities = sectionProbabilities;
-                }
-                else // calculate new probabilities
-                {
-                    // probabilities from the section scores
-                    double[,] sectionProbabilities = _ComputeSectionProbabilites(gameData);
-
-                    // average probabilities if the section number is high and the probabilities are not low
-                    if (gameData.NumOfSections > averageProbabilitiesThr && !isLowProbability)
-                        sectionProbabilities = _AverageProbabilities(sectionProbabilities, gameData);
-
-                    // check if section probabilities are constant
-                    gameData.isConstant = _isReturnProbabilityConstant(gameData, sectionProbabilities, kolSmiThr, partDiffThr);
-
-
-                    double[] sumPerMachine = new double[gameData.Machines];
-
-                    // normalize so that sum for same section is 1
-                    for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                    double sum = 0;
+                    for (int machine = 0; machine < gameData.Machines; machine++)
+                        sum += sectionProbabilities[sect, machine];
+                    for (int machine = 0; machine < gameData.Machines; machine++)
                     {
-                        double sum = 0;
-                        for (int machine = 0; machine < gameData.Machines; machine++)
-                            sum += sectionProbabilities[sect, machine];
-                        for (int machine = 0; machine < gameData.Machines; machine++)
-                        {
-                            sectionProbabilities[sect, machine] = sectionProbabilities[sect, machine] / sum;
-                            sumPerMachine[machine] += sectionProbabilities[sect, machine];
-                        }
+                        sectionProbabilities[sect, machine] = sectionProbabilities[sect, machine] / sum;
+                        sumPerMachine[machine] += sectionProbabilities[sect, machine];
                     }
+                }
 
-                    // if the data is found to be constant give more weight to it
-                    if (gameData.isConstant != isProbabilityConstant.NotConstant)
+                // if the data is found to be constant give more weight to it
+                if (gameData.isConstant != isProbabilityConstant.NotConstant)
+                {
+                    if (gameData.Machines > 1)
                     {
-                        if (gameData.Machines > 1)
-                        {
-                            double sumMax1 = (sumPerMachine[0] > sumPerMachine[1]) ? sumPerMachine[0] : sumPerMachine[1];
-                            double sumMax2 = (sumPerMachine[0] > sumPerMachine[1]) ? sumPerMachine[1] : sumPerMachine[0];
-                            int idx = (sumPerMachine[0] > sumPerMachine[1]) ? 0 : 1;
+                        double sumMax1 = (sumPerMachine[0] > sumPerMachine[1]) ? sumPerMachine[0] : sumPerMachine[1];
+                        double sumMax2 = (sumPerMachine[0] > sumPerMachine[1]) ? sumPerMachine[1] : sumPerMachine[0];
+                        int idx = (sumPerMachine[0] > sumPerMachine[1]) ? 0 : 1;
 
-                            for (int machine = 2; machine < gameData.Machines; machine++)
-                                if (sumPerMachine[machine] > 2)
-                                {
-                                    sumMax2 = sumMax1;
-                                    sumMax1 = sumPerMachine[machine];
-                                    idx = machine;
-                                }
-
-                            double factor = sumMax2 / sumMax1;
-
-                            if (gameData.isConstant == isProbabilityConstant.HighCertainty)
-                                initFactThrToCut += 0.15;
-
-                            if (factor < initFactThrToCut)
+                        for (int machine = 2; machine < gameData.Machines; machine++)
+                            if (sumPerMachine[machine] > sumMax1)
                             {
-                                for (int machine = 0; machine < gameData.Machines; machine++)
-                                {
-                                    for (int sect = 0; sect < gameData.NumOfSections; sect++)
-                                        sectionProbabilities[sect, machine] = (idx == machine) ? 1 : 0;
-                                }
+                                sumMax2 = sumMax1;
+                                sumMax1 = sumPerMachine[machine];
+                                idx = machine;
+                            }
+
+                        double factor = sumMax2 / sumMax1;
+
+                        if (gameData.isConstant == isProbabilityConstant.HighCertainty && !isLowProbability)
+                            initFactThrToCut += 0.15;
+
+                        if (factor < initFactThrToCut)
+                        {
+                            for (int machine = 0; machine < gameData.Machines; machine++)
+                            {
+                                for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                                    sectionProbabilities[sect, machine] = (idx == machine) ? 1 : 0;
                             }
                         }
                     }
+                }
 
+                // for low probabilities and not constant still use the uniform distribution in the second pass
+                if (isLowProbability && gameData.isConstant == isProbabilityConstant.NotConstant)
+                {
+                    int[,] sectionProbabilitieslp = new int[gameData.NumOfSections, gameData.Machines];
+
+                    for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                        for (int machine = 0; machine < gameData.Machines; machine++)
+                            sectionProbabilitieslp[sect, machine] = gameData.Probabilities[0, machine];
+
+                    gameData.Probabilities = sectionProbabilitieslp;
+                }
+                else
+                {
                     // convert the probabilities to cummulative sums in percents
                     for (int sect = 0; sect < gameData.NumOfSections; sect++)
                     {
-                        gameData.Probabilities[sect, 0] = (int)Math.Round(100 * sectionProbabilities[sect, 0]);
+                        double sum = sectionProbabilities[sect, 0];
+                        gameData.Probabilities[sect, 0] = (int)Math.Round(1000 * sectionProbabilities[sect, 0]);
                         for (int machine = 1; machine < gameData.Machines; machine++)
-                            gameData.Probabilities[sect, machine] = gameData.Probabilities[sect, machine - 1] + (int)Math.Round(100 * sectionProbabilities[sect, machine]);   // probabilities are converted to cummulative sum
+                        {
+                            sum += sectionProbabilities[sect, machine];
+                            gameData.Probabilities[sect, machine] = (int)Math.Round(1000 * sum);   // probabilities are converted to cummulative sum
+                        }
                     }
-
-                } // end of else of if(isLowProbability)
+                }
 
                 _SetPlayerPlayProgress(100);
 
@@ -291,14 +296,193 @@ namespace celtraJackpotPlayer.Controllers
                 // --------------------------  PLAYS OF A PARTICULAR GAME AFTER THE FIRST ONE   -----------------------------------------------------------------------------
                 //   ----------------------------------------------------------------------------------------------------------------------------------------
 
-            
-            
+                // -------------------------- PULLS ON THE MACHINE  -----------------------------------------------------------------------------
+
+                int sectionIndex = 0;
+
+                // go through all availible pulls and set the section
+                for (int pull = 1; pull <= gameData.Pulls; pull++)
+                {
+                    byte selectedMachine = _selectMachine(gameData.Probabilities, 0);
+
+                    int machineScore = _GetMachinePullScore(gameData.GameLocation, selectedMachine, pull);
+                    if (machineScore < 0)
+                        return null;
+
+                    score += machineScore;
+
+                    // accumulate section probabilities
+                    gameData.SectionsScore[sectionIndex, selectedMachine - 1] += machineScore;
+                    gameData.SectionsCount[sectionIndex, selectedMachine - 1]++;
+
+                    // check if a new section is struct
+                    if (pull == gameData.Sections[sectionIndex])
+                        sectionIndex++;
+
+                    // save progress for web display
+                    if (pull % (gameData.Pulls / 100) == 0)
+                        _SetPlayerPlayProgress(++progress - 1);
+
+                }
+
+                // --------------------------   COMPUTE WEIGHTS FOR THE NEXT PASS   -----------------------------------------------------------------------------
+
+                if (((double)score) / gameData.Pulls < lowProbabilityThr)
+                    isLowProbability = true;
+
+                // probabilities from the section scores
+                double[,] sectionProbabilities = _ComputeSectionProbabilites(gameData);
+
+                // check if section probabilities are constant
+                if (gameData.isConstant != isProbabilityConstant.HighCertainty)
+                    gameData.isConstant = _isReturnProbabilityConstant(gameData, sectionProbabilities, kolSmiThr, partDiffThr);
+
+                // average probabilities
+                if (gameData.isConstant != isProbabilityConstant.NotConstant)
+                    sectionProbabilities = _AverageProbabilities(sectionProbabilities, gameData);
+
+                // weight the probabilities with a power function and cut low probabilities -> with time the best probability should remain
+                for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                {
+                    double maxVal = 0;
+
+                    for (int machine = 0; machine < gameData.Machines; machine++)
+                        if (sectionProbabilities[sect, machine] > maxVal)
+                            maxVal = sectionProbabilities[sect, machine];
+
+                    // apply a power function and threshold low probabilities
+                    for (int machine = 0; machine < gameData.Machines; machine++)
+                    {
+                        sectionProbabilities[sect, machine] = Math.Pow(sectionProbabilities[sect, machine] / maxVal, (1 + (gameData.NumOfPlays - 2) * maxVal * 2));// with time and the max probability more confidently change the distribution
+                        if (!isLowProbability)
+                        {
+                            if (sectionProbabilities[sect, machine] < sectProbThr)
+                                sectionProbabilities[sect, machine] = 0;
+                        }
+                        else
+                        {
+                            if (sectionProbabilities[sect, machine] < sectProbThr/2 && gameData.NumOfPlays > 3)
+                                sectionProbabilities[sect, machine] = 0;
+                        }
+                    }
+                }
+
+                //if (sectProbThr < 0.5)
+                //    sectProbThr += 0.05;
+
+
+                double[] sumPerMachine = new double[gameData.Machines];
+
+                // normalize so that sum for same section is 1
+                for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                {
+                    double sum = 0;
+                    for (int machine = 0; machine < gameData.Machines; machine++)
+                        sum += sectionProbabilities[sect, machine];
+                    for (int machine = 0; machine < gameData.Machines; machine++)
+                    {
+                        sectionProbabilities[sect, machine] = sectionProbabilities[sect, machine] / sum;
+                        sumPerMachine[machine] += sectionProbabilities[sect, machine];
+                    }
+                }
+
+                // if the data is found to be constant give more weight to it
+                if (gameData.isConstant != isProbabilityConstant.NotConstant)
+                {
+                    if (gameData.Machines > 1)
+                    {
+                        double sumMax1 = (sumPerMachine[0] > sumPerMachine[1]) ? sumPerMachine[0] : sumPerMachine[1];
+                        double sumMax2 = (sumPerMachine[0] > sumPerMachine[1]) ? sumPerMachine[1] : sumPerMachine[0];
+                        int idx = (sumPerMachine[0] > sumPerMachine[1]) ? 0 : 1;
+
+                        for (int machine = 2; machine < gameData.Machines; machine++)
+                            if (sumPerMachine[machine] > sumMax1)
+                            {
+                                sumMax2 = sumMax1;
+                                sumMax1 = sumPerMachine[machine];
+                                idx = machine;
+                            }
+
+                        int maxBest = 0;
+                        for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                            if(gameData.SectionsScore[sect, idx] > maxBest)
+                                maxBest = gameData.SectionsScore[sect, idx];
+
+                        if (maxBest > 15)
+                        {
+
+                            double factor = sumMax2 / sumMax1;
+
+                            initFactThrToCut += Math.Pow((sumMax1 / gameData.NumOfSections), 0.1) * 0.05 * (gameData.NumOfPlays - 1);
+
+                            if (gameData.isConstant == isProbabilityConstant.HighCertainty && !isLowProbability)
+                                initFactThrToCut += 0.05;
+
+                            if (initFactThrToCut > maxFactThrToCut)
+                                initFactThrToCut = maxFactThrToCut;
+
+                            if (factor < initFactThrToCut)  // keep only the best
+                            {
+                                for (int machine = 0; machine < gameData.Machines; machine++)
+                                {
+                                    for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                                        sectionProbabilities[sect, machine] = (idx == machine) ? 1 : 0;
+                                }
+                            }
+                            else // TODO: cut the worst
+                            {
+                                //stCut = stCut + 1;
+                                //if stCut > floor(machines(N)/round(machines(N)/5))-1
+                                //    stCut = stCut - 1;
+                                //end
+                                //nn(:,Iswp(1:stCut*round(machines(N)/5))) = nn(:,Iswp(1:stCut*round(machines(N)/5)))/4;
+                                //nn = nn./ repmat(sum(nn,2),1,machines(N));     
+
+                            }
+                        }
+                    }
+                }
+
+
+                for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                {
+                    double max = 0;
+                    double sum = 0;
+
+                    for (int machine = 0; machine < gameData.Machines; machine++)
+                        if (gameData.SectionsCount[sect, machine] > max && sectionProbabilities[sect, machine] != 0)
+                            max = gameData.SectionsCount[sect, machine];
+
+                    for (int machine = 0; machine < gameData.Machines; machine++)
+                    {
+                        if (gameData.SectionsCount[sect, machine] < max * 0.5)
+                            sectionProbabilities[sect, machine] = 0;
+                        sum += sectionProbabilities[sect, machine];
+                    }
+
+                    for (int machine = 0; machine < gameData.Machines; machine++)
+                        sectionProbabilities[sect, machine] = sectionProbabilities[sect, machine] / sum;
+                }
+
+
+                // convert the probabilities to cummulative sums in percents
+                for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                {
+                    double sum = sectionProbabilities[sect, 0];
+                    gameData.Probabilities[sect, 0] = (int)Math.Round(1000 * sectionProbabilities[sect, 0]);
+                    for (int machine = 1; machine < gameData.Machines; machine++)
+                    {
+                        sum += sectionProbabilities[sect, machine];
+                        gameData.Probabilities[sect, machine] = (int)Math.Round(1000 * sum);   // probabilities are converted to cummulative sum
+                    }
+                }
+                
             }
 
             if (gameData.NumOfPlays > gameData.Score.Length)
             {
                 int[] tmpArray = gameData.Score;
-                Array.Resize<int>(ref tmpArray, gameData.Score.Length + 50);
+                Array.Resize<int>(ref tmpArray, gameData.Score.Length + 20);
                 gameData.Score = tmpArray;
             }
 
@@ -349,7 +533,6 @@ namespace celtraJackpotPlayer.Controllers
         // test the probability using the kolmogorov-smirnov test
         private isProbabilityConstant _isReturnProbabilityConstant(Game gameData, double[,] sectionProb, double kolSmiThr, double partDiffThr)
         {
-
             double[] part1VsPart2 = new double[gameData.Machines];
             double sumKolSmi = 0;
 
@@ -409,7 +592,7 @@ namespace celtraJackpotPlayer.Controllers
         private byte _selectMachine(int[,] probabilities, int section)
         {
             byte selectedMachine = 1;
-            int rndNumber = rndGen.Next(1, 101); // numbers 1-100
+            int rndNumber = rndGen.Next(1, 1001); // numbers 1-1000
 
             // randomly select machine based on the weights
             for (int i = 0; i < probabilities.GetLength(1) - 1; i++)
@@ -448,7 +631,8 @@ namespace celtraJackpotPlayer.Controllers
         private void _Resize2DArray(ref int[,] array, int newSize)
         {
             int[,] tmpArray = new int[newSize, array.GetLength(1)];
-            for (int i = 0; i < array.GetLength(0); i++)
+            int minSize = Math.Min(newSize, array.GetLength(0));
+            for (int i = 0; i < minSize; i++)
                 for (int j = 0; j < array.GetLength(1); j++)
                     tmpArray[i, j] = array[i, j];
             array = tmpArray;
