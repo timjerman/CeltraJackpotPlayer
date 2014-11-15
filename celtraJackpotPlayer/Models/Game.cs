@@ -15,6 +15,7 @@ namespace celtraJackpotPlayer.Models
     public class Game
     {
         public int GameID { get; set; }
+        public DateTime LastGameTime { get; set; }
         public string GameLocation { get; set; }
         public int Machines { get; set; }
         public int Pulls { get; set; }

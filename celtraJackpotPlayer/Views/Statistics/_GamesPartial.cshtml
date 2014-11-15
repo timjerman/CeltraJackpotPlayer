@@ -1,0 +1,26 @@
+﻿@model IEnumerable<celtraJackpotPlayer.Models.Game>
+
+<!-- create game selector for statistics  -->
+@if (Model.Count() > 0)
+{
+    <text>
+    <div class="statGames">
+        <select class="selectpicker" data-live-search="true" id="stat-game-selector">
+            @foreach (var item in Model)
+            {
+                <option>
+                    @Html.DisplayFor(modelItem => item.GameLocation)
+                </option>
+            }
+        </select>
+    </div>
+    </text>
+}
+else
+{
+    <text>
+    <div class="statGames">
+        <select class="selectpicker" data-live-search="true"></select>
+    </div>
+    </text>
+}

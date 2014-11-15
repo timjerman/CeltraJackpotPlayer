@@ -23,7 +23,7 @@ namespace celtraJackpotPlayer.Controllers
             _SetPlayerPlayState(true);
             _SetPlayerPlayProgress(0);
 
-            string address = "http://celtra-jackpot.com/5";
+            string address = "http://celtra-jackpot.com/1";
 
             // load game from db if exists else initialiaze a new object
             Game gameData = _InitializeGameData(address);
@@ -47,7 +47,8 @@ namespace celtraJackpotPlayer.Controllers
             }
 
             // store data and return last score
-            gameData = _UpdateGameObjectForDbSave(gameData);
+            gameData = Utilities.DataManipulation._UpdateGameObjectForDbSave(gameData);
+            gameData.LastGameTime = System.DateTime.Now;
             if (gameData.NumOfPlays > 1)
                 _SaveGameToDb(gameData);
             else
@@ -361,7 +362,7 @@ namespace celtraJackpotPlayer.Controllers
                         }
                         else
                         {
-                            if (sectionProbabilities[sect, machine] < sectProbThr/2 && gameData.NumOfPlays > 3)
+                            if (sectionProbabilities[sect, machine] < sectProbThr / 2 && gameData.NumOfPlays > 3)
                                 sectionProbabilities[sect, machine] = 0;
                         }
                     }
@@ -405,7 +406,7 @@ namespace celtraJackpotPlayer.Controllers
 
                         int maxBest = 0;
                         for (int sect = 0; sect < gameData.NumOfSections; sect++)
-                            if(gameData.SectionsScore[sect, idx] > maxBest)
+                            if (gameData.SectionsScore[sect, idx] > maxBest)
                                 maxBest = gameData.SectionsScore[sect, idx];
 
                         if (maxBest > 15)
@@ -476,7 +477,7 @@ namespace celtraJackpotPlayer.Controllers
                         gameData.Probabilities[sect, machine] = (int)Math.Round(1000 * sum);   // probabilities are converted to cummulative sum
                     }
                 }
-                
+
             }
 
             if (gameData.NumOfPlays > gameData.Score.Length)
@@ -659,34 +660,11 @@ namespace celtraJackpotPlayer.Controllers
             return gameData;
         }
 
-
-        // convert all arrays in the game objects to strings so that they can be stored in the database
-        private Game _UpdateGameObjectForDbSave(Game gameData)
-        {
-            gameData.ScoreStr = _IntArrayToString(gameData.Score);
-            gameData.SectionsStr = _IntArrayToString(gameData.Sections);
-            gameData.ProbabilitiesStr = _IntMatrixToString(gameData.Probabilities);
-            gameData.SectionsScoreStr = _IntMatrixToString(gameData.SectionsScore);
-            gameData.SectionsCountStr = _IntMatrixToString(gameData.SectionsCount);
-
-            return gameData;
-        }
-
-        // convert all strings (needed for storing in the db) in the game object to arrays 
-        private Game _PrepareGameObjectForComputation(Game gameData)
-        {
-            gameData.Score = _StringToIntArray(gameData.ScoreStr);
-            gameData.Sections = _StringToIntArray(gameData.SectionsStr);
-            gameData.Probabilities = _StringToIntMatrix(gameData.ProbabilitiesStr);
-            gameData.SectionsScore = _StringToIntMatrix(gameData.SectionsScoreStr);
-            gameData.SectionsCount = _StringToIntMatrix(gameData.SectionsCountStr);
-
-            return gameData;
-        }
-
         // load data from database or create a new object if the entry does not exist
         private Game _InitializeGameData(string address)
         {
+            address = Utilities.DataManipulation._ShortenAddress(address);
+
             Game gameData = _GetGameFromDb(address);
 
             if (gameData == null)
@@ -708,7 +686,7 @@ namespace celtraJackpotPlayer.Controllers
                 gameData.SectionsScore = new int[100, gameData.Machines];
                 gameData.SectionsCount = new int[100, gameData.Machines];
             }
-            else gameData = _PrepareGameObjectForComputation(gameData);
+            else gameData = Utilities.DataManipulation._PrepareGameObjectForComputation(gameData);
 
             return gameData;
         }
@@ -722,59 +700,6 @@ namespace celtraJackpotPlayer.Controllers
 
             return sum;
         }
-
-        // convert int array to string -> for storing in the database
-        private string _IntArrayToString(int[] array)
-        {
-            return String.Join(";", new List<int>(array).ConvertAll(i => i.ToString()).ToArray());
-        }
-
-        // extract int array from string -> for storing in the database
-        private int[] _StringToIntArray(string str)
-        {
-            return str.Split(';').Select(n => Convert.ToInt32(n)).ToArray();
-        }
-
-        // convert int matrix to string -> for storing in the database
-        private string _IntMatrixToString(int[,] matrix)
-        {
-            string returnStr = "";
-
-            for (int i = 0; i < matrix.GetLength(0); i++)
-            {
-                int[] array = new int[matrix.GetLength(1)];
-                System.Buffer.BlockCopy(matrix, 4 * i * matrix.GetLength(1), array, 0, 4 * matrix.GetLength(1));
-
-                if (i > 0)
-                    returnStr = returnStr + ":" + _IntArrayToString(array);
-                else
-                    returnStr = _IntArrayToString(array);
-            }
-
-            return returnStr;
-        }
-
-        // extract matrix from string -> for storing in the database
-        private int[,] _StringToIntMatrix(string str)
-        {
-            string[] rowStr;
-            rowStr = str.Split(':');
-
-            int columns = _StringToIntArray(rowStr[0]).Length;
-            int rows = rowStr.Length;
-            int[,] matrix = new int[rows, columns];
-
-            for (int i = 0; i < rows; i++)
-            {
-                int[] array = _StringToIntArray(rowStr[i]);
-
-                for (int j = 0; j < columns; j++)
-                    matrix[i, j] = array[j];
-            }
-
-            return matrix;
-        }
-
 
         // retrieve all logs from the database
         private List<Log> _GetLogsFromDb()
@@ -799,7 +724,6 @@ namespace celtraJackpotPlayer.Controllers
 
             return;
         }
-
 
         // retrieve model from database by address
         private Game _GetGameFromDb(string address)

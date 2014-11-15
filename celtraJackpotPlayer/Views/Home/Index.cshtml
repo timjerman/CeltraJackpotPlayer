@@ -9,11 +9,11 @@
 <!-- form for submiting the game address -->
 <form class="form-horizontal" role="form" id="post-form">
     <div class="form-group">
-        <label class="control-label col-sm-2" for="inputSuccess3">Game Server:</label>
+        <label class="control-label col-sm-2" for="Address">Game Server:</label>
         <div class="col-sm-6">
             <input class="form-control" placeholder="Address" type="text" id="Address">
         </div>
-        <div class="col-sm-">
+        <div class="col-sm-2">
             <button class="btn btn-default" type="submit" id="post-play">Play</button>
         </div>
     </div>
@@ -49,8 +49,21 @@
 
 <h2>Statistics</h2>
 
+<!-- form for selecting the game address -->
+<form class="form-horizontal" role="form" id="post-form-stat">
+    <div class="form-group">
+        <label class="control-label col-sm-2">Select played game:</label>
+        <div class="col-sm-6">
+            <div class="statGames">
+                <select class="selectpicker"  id="stat-game-selector"></select>
+            </div>
+        </div>
+    </div>
+</form>
 
 
+
+<div class="statisticsCharts"></div>
 
 <!-- -->
 <!-- Modal dialog for error messaging -->
@@ -75,12 +88,15 @@
 @section Scripts {
     <script type="text/javascript">
         $(function () {
+            //enable selectpicker
+            $('.selectpicker').selectpicker();
 
             $('#circular-progress-main').hide();
 
             // at the begining: update log + check if there is already a game running
             updateLog();
             isPlayerRunning();
+            updateStatisticsAddressList();
 
             // checks if the player is playing the game -> disable input if he is and show progress (prevent two games at the same time)
             function isPlayerRunning() {
@@ -125,6 +141,7 @@
                 })
                     .success(function (response) {
                         updateLog();
+                        updateStatisticsAddressList();
                         $('#post-form').show();
                         $('#circular-progress-main').hide();
                     })
@@ -146,12 +163,12 @@
                 $.ajax({
                     type: "POST",
                     url: "@Url.Action("PlayerProgress", "Play")",
-                    })
+                })
                         .success(function (response) {
                             setCircularProgress(response);
                             setTimeout(isPlayerRunning, 500);
                         });
-                }
+            }
 
             // set circular progressbar progress
             function setCircularProgress(progressVal) {
@@ -191,6 +208,39 @@
                 }
             });
 
+            //popolates the list of played games
+            function updateStatisticsAddressList() {
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("Games", "Statistics")",
+                    data: "",
+                })
+                    .success(function (response) {
+
+                        $('.statGames').replaceWith(response);
+                        $('.selectpicker').selectpicker();
+                        // display statistics for the latest
+                        var address = $('#stat-game-selector option:first-child').val();
+                        if (address != "") {
+                            drawStatisticsCharts(address);
+                        }
+                    })
+            }
+
+            // draw the statistics partial with charts
+            function drawStatisticsCharts(address) {
+                $.ajax({
+                    type: "POST",
+                    url: "@Url.Action("GameCharts", "Statistics")",
+                    data: { address: address },
+                })
+                    .success(function (response) {
+                        $('.statisticsCharts').replaceWith(response);
+                    })
+                    .error(function () {
+                        $('.statisticsCharts').replaceWith('<div class="statisticsCharts"><div class="alert alert-info" role="alert"><strong>Connection error</strong><div>Graphs could not be displayed!</div></div></div>');
+                    });
+            }
 
         });
 

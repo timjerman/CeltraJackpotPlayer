@@ -1,52 +1,77 @@
 ﻿@model IEnumerable<celtraJackpotPlayer.Models.Log>
 
 @{
-    var alertType = Model.First().IsSuccess ? "alert-success" : "alert-danger";
+    var alertType = "alert-danger";
+    if (Model.Count() > 0)
+    {
+        alertType = Model.First().IsSuccess ? "alert-success" : "alert-danger";
+    }
 }
 
 <!-- displays a collapsable table of log entries  -->
+@if (Model.Count() > 0)
+{
+    <text>
 
-<!-- an alert is used for the latest log entry -->
-<div class="log-section">
-    <div class="log-alert">
-        <div class="alert @alertType" role="alert"> 
-            <strong>@Model.First().LogTime</strong>
-            <div>
-                @Model.First().Message
-            </div>    
+    <!-- an alert is used for the latest log entry -->
+    <div class="log-section">
+        <div class="log-alert">
+            <div class="alert @alertType" role="alert">
+                <strong>@Model.First().LogTime</strong>
+                <div>
+                    @Model.First().Message
+                </div>
+            </div>
         </div>
-    </div>
 
-    <div class="collapse" id="log-table">
-        <div class="log-table-limited">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>
-                            @Html.DisplayNameFor(model => model.LogTime)
-                        </th>
-                        <th>
-                            @Html.DisplayNameFor(model => model.Message)
-                        </th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-            @foreach (var item in Model) {
-                    <tr>
-                        <td>
-                            @Html.DisplayFor(modelItem => item.LogTime)
-                        </td>
-                        <td>
-                            @Html.DisplayFor(modelItem => item.Message)
-                        </td>
-                    </tr>
-            }
-                </tbody>
-            </table>
+        <div class="collapse" id="log-table">
+            <div class="log-table-limited">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>
+                                @Html.DisplayNameFor(model => model.LogTime)
+                            </th>
+                            <th>
+                                @Html.DisplayNameFor(model => model.Message)
+                            </th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>
+                                    @Html.DisplayFor(modelItem => item.LogTime)
+                                </td>
+                                <td>
+                                    @Html.DisplayFor(modelItem => item.Message)
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
+        <button type="button" id="expand-log" class="btn" data-toggle="collapse" data-target="#log-table">
+            <span class="glyphicon glyphicon-chevron-down"></span>Expand Log History
+        </button>
     </div>
-    <button type="button" id="expand-log" class="btn" data-toggle="collapse" data-target="#log-table">
-        <span class="glyphicon glyphicon-chevron-down"></span> Expand Log History
-    </button>
-</div>
+    </text>
+}
+else
+{
+    <text>
+    <div class="log-section">
+        <div class="log-alert">
+            <div class="alert alert-info" role="alert">
+                <strong>No logs</strong>
+                <div>
+                    The log database is empty.
+                </div>
+            </div>
+        </div>
+    </div>    
+    </text>
+}
