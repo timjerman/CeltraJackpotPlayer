@@ -101,7 +101,7 @@ namespace celtraJackpotPlayer.Controllers
             Highcharts chartScore = new Highcharts("chartScore")
                 .SetOptions(new GlobalOptions { Global = new Global { UseUTC = false } })
                 .InitChart(new Chart { ZoomType = ZoomTypes.X, SpacingTop = 0, SpacingBottom = 0, Height = 300 })
-                .SetTitle(new Title { Text = "Machine Score" })
+                .SetTitle(new Title { Text = "Game Score" })
                 .SetXAxis(new XAxis { TickInterval = 1, Title = new XAxisTitle { Text = "Plays" }, Min = 1, Max = gameData.NumOfPlays })
                 .SetYAxis(new YAxis
                 {
@@ -154,7 +154,7 @@ namespace celtraJackpotPlayer.Controllers
             Highcharts chartSelectedMachine = new Highcharts("chartSelectedMachine")
                 .InitChart(new Chart { PlotBackgroundColor = null, PlotBorderWidth = null, PlotShadow = false, SpacingTop = 0, SpacingBottom = 0, Height = 300 })
                 .SetTitle(new Title { Text = "Selection per Machine" })
-                .SetTooltip(new Tooltip { PointFormat = "{series.name}: <b>{point.percentage}%</b>" /*, percentageDecimals: 1*/ })
+                .SetTooltip(new Tooltip { PointFormat = "{series.name}: <b>{point.percentage:.2f}%</b>" /*, percentageDecimals: 1*/ })
                 .SetCredits(new Credits { Enabled = false })
                 .SetPlotOptions(new PlotOptions
                 {
@@ -167,7 +167,7 @@ namespace celtraJackpotPlayer.Controllers
                             Enabled = true,
                             Color = ColorTranslator.FromHtml("#000000"),
                             ConnectorColor = ColorTranslator.FromHtml("#000000"),
-                            Formatter = "function() { return '<b>'+ this.point.name +'</b>: '+ this.percentage +' %'; }"
+                            Formatter = "function() { return '<b>'+ this.point.name +'</b>: '+ Highcharts.numberFormat(this.percentage,2) +' %'; }"
                         }
                     }
                 });
@@ -175,24 +175,47 @@ namespace celtraJackpotPlayer.Controllers
 
             double[] selectedMachine = new double[gameData.Machines];
 
+            double maxProb = 0;
+
             for (int sect = 0; sect < gameData.NumOfSections; sect++)
             {
-                int max = gameData.Probabilities[sect, 0];
+                int max = gameData.Probabilities[sect, 0];                
                 int idx = 0;
+                int numSame = 0;
+
+                if (maxProb < ((double)gameData.SectionsScore[sect, 0]) / gameData.SectionsCount[sect, 0])
+                    maxProb = ((double)gameData.SectionsScore[sect, 0]) / gameData.SectionsCount[sect, 0];
+
                 for (int machine = 1; machine < gameData.Machines; machine++)
                 {
                     if (gameData.Probabilities[sect, machine] > max)
                     {
                         max = gameData.Probabilities[sect, machine];
                         idx = machine;
+                        numSame = 0;
+                    }
+                    else if (gameData.Probabilities[sect, machine] == max)
+                        numSame++;
+
+                    if (maxProb < ((double)gameData.SectionsScore[sect, machine]) / gameData.SectionsCount[sect, machine])
+                        maxProb = ((double)gameData.SectionsScore[sect, machine]) / gameData.SectionsCount[sect, machine];
+                }
+
+                if (numSame > 0)
+                {
+                    for (int machine = 0; machine < gameData.Machines; machine++)
+                    {
+                        if (gameData.Probabilities[sect, machine] == max)
+                            selectedMachine[machine] += (100.0 / gameData.NumOfSections) / (numSame + 1);
                     }
                 }
-                selectedMachine[idx] += 100.0 / gameData.NumOfSections;
+                else
+                    selectedMachine[idx] += 100.0 / gameData.NumOfSections;
             }
             object[] dataObject = new object[gameData.Machines];
 
             for (int machine = 0; machine < gameData.Machines; machine++)
-                dataObject[machine] = new object[] { "Machine " + ((machine + 1).ToString()), Math.Round(selectedMachine[machine] * 10) / 10 };
+                dataObject[machine] = new object[] { "Machine " + ((machine + 1).ToString()), selectedMachine[machine]};
 
             chartSelectedMachine.SetSeries(new Series
             {
@@ -221,6 +244,7 @@ namespace celtraJackpotPlayer.Controllers
             ViewBag.GameLocation = gameData.GameLocation;
             ViewBag.NumOfPlays = gameData.NumOfPlays;
             ViewBag.LastGameTime = gameData.LastGameTime;
+            ViewBag.MaxProbability = Math.Round(maxProb*1000)/1000;
 
             List<Highcharts> charts = new List<Highcharts>();
             charts.Add(chartScore);
