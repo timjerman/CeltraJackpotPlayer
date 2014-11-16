@@ -86,7 +86,7 @@ namespace celtraJackpotPlayer.Utilities
             return matrix;
         }
 
-        public static string _ShortenAddress(string address)
+        public static string _PrepareAddress(string address)
         {
             address = address.Replace("http:\\\\", "");
             address = address.Replace("http://", "");
@@ -95,5 +95,14 @@ namespace celtraJackpotPlayer.Utilities
             return address;
         }
 
+        // sum all scores from the game with the same address
+        public static int _SumOfScores(Game gameData)
+        {
+            int sum = 0;
+            for (int i = 0; i < gameData.NumOfPlays; i++)
+                sum += gameData.Score[i];
+
+            return sum;
+        }
     }
 }

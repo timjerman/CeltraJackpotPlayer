@@ -1,12 +1,72 @@
 ﻿@model List<DotNet.Highcharts.Highcharts>
 
 <div class="statisticsCharts">
+    <hr />
     <div class="row">
+        <div class="col-md-6">
+            <table class="table">
+                <tr>
+                    <th>Address
+                    </th>
+                    <td>
+                        @ViewBag.GameLocation
+                    </td>
+                </tr>
+                <tr>
+                    <th>Score:
+                    </th>
+                    <td>
+                        @ViewBag.Score
+                    </td>
+                </tr>
+                <tr>
+                    <th>Number of Machines
+                    </th>
+                    <td>
+                        @ViewBag.Machines
+                    </td>
+                </tr>
+                <tr>
+                    <th>Number of Pulls
+                    </th>
+                    <td>
+                        @ViewBag.Pulls
+                    </td>
+                </tr>
+                <tr>
+                    <th>Last played on
+                    </th>
+                    <td>
+                        @ViewBag.LastGameTime
+                    </td>
+                </tr>
+                <tr>
+                    <th>Number of played games
+                    </th>
+                    <td>
+                        @ViewBag.NumOfPlays
+                    </td>
+                </tr>
+                <tr>
+                    <th>Constant
+                    </th>
+                    <td>
+                        @ViewBag.Constant
+                    </td>
+                </tr>
+            </table>
+        </div>
         <div class="col-md-6">
             @(Model.ElementAt(0))
         </div>
+    </div>
+    <br />
+    <div class="row">
         <div class="col-md-6">
             @(Model.ElementAt(1))
+        </div>
+        <div class="col-md-6">
+            @(Model.ElementAt(2))
         </div>
     </div>
 </div>

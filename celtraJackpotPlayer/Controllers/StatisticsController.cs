@@ -18,7 +18,7 @@ namespace celtraJackpotPlayer.Controllers
         // retrieve model from database by address
         private Game _GetGameFromDb(string address)
         {
-            address = Utilities.DataManipulation._ShortenAddress(address);
+            address = Utilities.DataManipulation._PrepareAddress(address);
             var db = new GameContext();
             return db.Games.SingleOrDefault(game => game.GameLocation == address);
         }
@@ -57,9 +57,9 @@ namespace celtraJackpotPlayer.Controllers
             // -------------------------------------------------------------------------------------
 
             Highcharts chartProbability = new Highcharts("chartProbability")
-                .InitChart(new Chart { DefaultSeriesType = ChartTypes.Area })
+                .InitChart(new Chart { DefaultSeriesType = ChartTypes.Area, SpacingTop = 0, SpacingBottom = 0, Height = 300 })
                 .SetTitle(new Title { Text = "Machine Weights" })
-                .SetXAxis(new XAxis { TickInterval = 1, Title = new XAxisTitle { Text = "Section" } })
+                .SetXAxis(new XAxis { TickInterval = 1, Title = new XAxisTitle { Text = "Section" }, Min = 1, Max = gameData.NumOfSections })
                 .SetYAxis(new YAxis { Title = new YAxisTitle { Text = "Machine" } })
                 .SetTooltip(new Tooltip { Formatter = "function() { return 'machine: ' + this.series.name +' ('+ Highcharts.numberFormat(this.percentage, 1) +')'; }" })
                 .SetCredits(new Credits { Enabled = false })
@@ -100,9 +100,9 @@ namespace celtraJackpotPlayer.Controllers
 
             Highcharts chartScore = new Highcharts("chartScore")
                 .SetOptions(new GlobalOptions { Global = new Global { UseUTC = false } })
-                .InitChart(new Chart { ZoomType = ZoomTypes.X })
+                .InitChart(new Chart { ZoomType = ZoomTypes.X, SpacingTop = 0, SpacingBottom = 0, Height = 300 })
                 .SetTitle(new Title { Text = "Machine Score" })
-                .SetXAxis(new XAxis { TickInterval = 1, Title = new XAxisTitle { Text = "Plays" } })
+                .SetXAxis(new XAxis { TickInterval = 1, Title = new XAxisTitle { Text = "Plays" }, Min = 1, Max = gameData.NumOfPlays })
                 .SetYAxis(new YAxis
                 {
                     Title = new YAxisTitle { Text = "Score" },
@@ -151,10 +151,81 @@ namespace celtraJackpotPlayer.Controllers
 
 
 
+            Highcharts chartSelectedMachine = new Highcharts("chartSelectedMachine")
+                .InitChart(new Chart { PlotBackgroundColor = null, PlotBorderWidth = null, PlotShadow = false, SpacingTop = 0, SpacingBottom = 0, Height = 300 })
+                .SetTitle(new Title { Text = "Selection per Machine" })
+                .SetTooltip(new Tooltip { PointFormat = "{series.name}: <b>{point.percentage}%</b>" /*, percentageDecimals: 1*/ })
+                .SetCredits(new Credits { Enabled = false })
+                .SetPlotOptions(new PlotOptions
+                {
+                    Pie = new PlotOptionsPie
+                    {
+                        AllowPointSelect = true,
+                        Cursor = Cursors.Pointer,
+                        DataLabels = new PlotOptionsPieDataLabels
+                        {
+                            Enabled = true,
+                            Color = ColorTranslator.FromHtml("#000000"),
+                            ConnectorColor = ColorTranslator.FromHtml("#000000"),
+                            Formatter = "function() { return '<b>'+ this.point.name +'</b>: '+ this.percentage +' %'; }"
+                        }
+                    }
+                });
+
+
+            double[] selectedMachine = new double[gameData.Machines];
+
+            for (int sect = 0; sect < gameData.NumOfSections; sect++)
+            {
+                int max = gameData.Probabilities[sect, 0];
+                int idx = 0;
+                for (int machine = 1; machine < gameData.Machines; machine++)
+                {
+                    if (gameData.Probabilities[sect, machine] > max)
+                    {
+                        max = gameData.Probabilities[sect, machine];
+                        idx = machine;
+                    }
+                }
+                selectedMachine[idx] += 100.0 / gameData.NumOfSections;
+            }
+            object[] dataObject = new object[gameData.Machines];
+
+            for (int machine = 0; machine < gameData.Machines; machine++)
+                dataObject[machine] = new object[] { "Machine " + ((machine + 1).ToString()), Math.Round(selectedMachine[machine] * 10) / 10 };
+
+            chartSelectedMachine.SetSeries(new Series
+            {
+                Type = ChartTypes.Pie,
+                Name = "Selected",
+                Data = new Data(dataObject)
+            });
+
+
+            switch (gameData.isConstant)
+            {
+                case isProbabilityConstant.HighCertainty:
+                    ViewBag.Constant = "High Certainty";
+                    break;
+                case isProbabilityConstant.LowCertainty:
+                    ViewBag.Constant = "Low Certainty";
+                    break;
+                default:
+                    ViewBag.Constant = "No";
+                    break;
+            }
+
+            ViewBag.Score = gameData.Score[gameData.NumOfPlays - 1].ToString() + " (total: " + Utilities.DataManipulation._SumOfScores(gameData).ToString() + ")";
+            ViewBag.Machines = gameData.Machines;
+            ViewBag.Pulls = gameData.Pulls;
+            ViewBag.GameLocation = gameData.GameLocation;
+            ViewBag.NumOfPlays = gameData.NumOfPlays;
+            ViewBag.LastGameTime = gameData.LastGameTime;
 
             List<Highcharts> charts = new List<Highcharts>();
             charts.Add(chartScore);
             charts.Add(chartProbability);
+            charts.Add(chartSelectedMachine);
 
             return PartialView("_GameStatisticsChartsPartial", charts);
         }

@@ -23,7 +23,7 @@ namespace celtraJackpotPlayer.Controllers
             _SetPlayerPlayState(true);
             _SetPlayerPlayProgress(0);
 
-            string address = "http://celtra-jackpot.com/1";
+            string address = "http://celtra-jackpot.com/4";
 
             // load game from db if exists else initialiaze a new object
             Game gameData = _InitializeGameData(address);
@@ -55,7 +55,7 @@ namespace celtraJackpotPlayer.Controllers
                 _AddGameToDb(gameData);
 
             int resultingScore = gameData.Score[gameData.NumOfPlays - 1];
-            _AddLogToDb("score: " + resultingScore.ToString() + " (sum: " + _SumOfScores(gameData) + "), game: " + address, true);
+            _AddLogToDb("score: " + resultingScore.ToString() + " (sum: " + Utilities.DataManipulation._SumOfScores(gameData).ToString() + "), game: " + address, true);
             _SetPlayerPlayState(false);
 
             return Content(resultingScore.ToString(), "text/plain");
@@ -74,7 +74,7 @@ namespace celtraJackpotPlayer.Controllers
             byte maxSectionFraction = 10; // what is the maximum possible section -> all pulls/this
             double lowProbabilityThr = 0.05; // the threshold to distinguish between two modes -> for low probabilities less confidently assign weights
             double kolSmiThr = 0.5; // threshold for the kolmogorov smirnov test for testing if the probabilities are konstant
-            double partDiffThr = 0.06; //threshold for the second constant probability test
+            double partDiffThr = 0.1; //threshold for the second constant probability test
             double initFactThrToCut = 0.7;  // for constant distributions: if the second highest probability / the highest probability is greater than this factor only use the best machine
             double maxFactThrToCut = 0.95;
             double sectProbThr = 0.2; // initial threshold for thresholding low probabilities
@@ -409,15 +409,16 @@ namespace celtraJackpotPlayer.Controllers
                             if (gameData.SectionsScore[sect, idx] > maxBest)
                                 maxBest = gameData.SectionsScore[sect, idx];
 
+                        // there should be enough hits for trying to determine anything - so not to have throubles with low probabilities
                         if (maxBest > 15)
                         {
 
                             double factor = sumMax2 / sumMax1;
 
-                            initFactThrToCut += Math.Pow((sumMax1 / gameData.NumOfSections), 0.1) * 0.05 * (gameData.NumOfPlays - 1);
+                            // for high confidence increase the speed of determining the best machine
+                            int highConfidenceFactor = (gameData.isConstant == isProbabilityConstant.HighCertainty) ? 2 : 0;
 
-                            if (gameData.isConstant == isProbabilityConstant.HighCertainty && !isLowProbability)
-                                initFactThrToCut += 0.05;
+                            initFactThrToCut += Math.Pow((sumMax1 / gameData.NumOfSections), 0.1) * 0.05 * (gameData.NumOfPlays + highConfidenceFactor - 1);
 
                             if (initFactThrToCut > maxFactThrToCut)
                                 initFactThrToCut = maxFactThrToCut;
@@ -663,7 +664,7 @@ namespace celtraJackpotPlayer.Controllers
         // load data from database or create a new object if the entry does not exist
         private Game _InitializeGameData(string address)
         {
-            address = Utilities.DataManipulation._ShortenAddress(address);
+            address = Utilities.DataManipulation._PrepareAddress(address);
 
             Game gameData = _GetGameFromDb(address);
 
@@ -689,16 +690,6 @@ namespace celtraJackpotPlayer.Controllers
             else gameData = Utilities.DataManipulation._PrepareGameObjectForComputation(gameData);
 
             return gameData;
-        }
-
-        // sum all scores from the game with the same address
-        private int _SumOfScores(Game gameData)
-        {
-            int sum = 0;
-            for (int i = 0; i < gameData.NumOfPlays; i++)
-                sum += gameData.Score[i];
-
-            return sum;
         }
 
         // retrieve all logs from the database

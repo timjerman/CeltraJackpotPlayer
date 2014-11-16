@@ -28,7 +28,7 @@
     </div>
 </div>
 
-
+<hr />
 <h2>Log</h2>
 
 <!-- this log section will be replaced by the _LogPartial with log information from the db-->
@@ -46,7 +46,7 @@
 </div>
 
 
-
+<hr />
 <h2>Statistics</h2>
 
 <!-- form for selecting the game address -->
@@ -55,8 +55,11 @@
         <label class="control-label col-sm-2">Select played game:</label>
         <div class="col-sm-6">
             <div class="statGames">
-                <select class="selectpicker"  id="stat-game-selector"></select>
+                <select class="selectpicker" id="stat-game-selector"></select>
             </div>
+        </div>
+        <div class="col-sm-2">
+            <button class="btn btn-default" type="submit" id="post-display-stat">Display</button>
         </div>
     </div>
 </form>
@@ -241,6 +244,19 @@
                         $('.statisticsCharts').replaceWith('<div class="statisticsCharts"><div class="alert alert-info" role="alert"><strong>Connection error</strong><div>Graphs could not be displayed!</div></div></div>');
                     });
             }
+
+            // start the player on the server side + start the progress circle
+            $('#post-display-stat').on("click", function () {
+
+                // display statistics for the latest
+                var address = $('#stat-game-selector').find(':selected').val();
+                if (address != "") {
+                    drawStatisticsCharts(address);
+                }
+
+                return false;
+            });
+
 
         });
 
