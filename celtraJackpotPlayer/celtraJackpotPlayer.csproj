@@ -278,6 +278,7 @@
     <Content Include="Views\Play\_LogPartial.cshtml" />
     <Content Include="Views\Statistics\_GameStatisticsChartsPartial.cshtml" />
     <Content Include="Views\Statistics\_GamesPartial.cshtml" />
+    <Content Include="Views\Statistics\_SelectionPartial.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />

@@ -61,6 +61,9 @@
         <div class="col-sm-2">
             <button class="btn btn-default" type="submit" id="post-display-stat">Display</button>
         </div>
+        <div class="col-sm-2">
+            <button class="btn btn-default" type="submit" id="post-display-selection">Generate Machine Pulls</button>
+        </div>
     </div>
 </form>
 
@@ -79,6 +82,23 @@
             </div>
             <div class="modal-body">
                 An error occured. Please check the log if more information is available.  
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal dialog for machine selection -->
+<div class="modal fade" id="selectionModal" tabindex="-1" role="dialog" aria-labelledby="selectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content panel-info">
+            <div class="modal-header panel-heading">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="selectionModalLabel">Generated machine selections for each pull</h4>
+            </div>
+            <div class="modal-body" id="selectionModalBody">
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -245,13 +265,39 @@
                     });
             }
 
-            // start the player on the server side + start the progress circle
+            // display statistics for selected game
             $('#post-display-stat').on("click", function () {
 
                 // display statistics for the latest
                 var address = $('#stat-game-selector').find(':selected').val();
                 if (address != "") {
                     drawStatisticsCharts(address);
+                }
+
+                return false;
+            });
+
+
+
+            // display statistics for selected game
+            $('#post-display-selection').on("click", function () {
+
+                // display statistics for the latest
+                var address = $('#stat-game-selector').find(':selected').val();
+                if (address != "") {
+                    $.ajax({
+                        type: "POST",
+                        url: "@Url.Action("MachineSelection", "Statistics")",
+                    data: { address: address },
+                })
+                    .success(function (response) {
+                        $('#selectionModalBody').replaceWith(response);
+                        $('#selectionModal').modal('toggle');
+                    })
+                    .error(function () {
+                        $('#selectionModalBody').replaceWith('<div class="modal-body" id="selectionModalBody">An error occured.</div>');
+                        $('#selectionModal').modal('toggle');
+                    });
                 }
 
                 return false;

@@ -15,6 +15,8 @@ namespace celtraJackpotPlayer.Controllers
 {
     public class StatisticsController : Controller
     {
+        private static Random rndGen = new Random();
+
         // retrieve model from database by address
         private Game _GetGameFromDb(string address)
         {
@@ -150,6 +152,10 @@ namespace celtraJackpotPlayer.Controllers
             chartScore.SetSeries(new Series { Type = ChartTypes.Area, Name = "Score", Data = seriesDataScore });
 
 
+            // -------------------------------------------------------------------------------------
+            //                              PIE CHART - MACHINE SELECTION PER SECTION
+            // -------------------------------------------------------------------------------------
+
 
             Highcharts chartSelectedMachine = new Highcharts("chartSelectedMachine")
                 .InitChart(new Chart { PlotBackgroundColor = null, PlotBorderWidth = null, PlotShadow = false, SpacingTop = 0, SpacingBottom = 0, Height = 300 })
@@ -179,7 +185,7 @@ namespace celtraJackpotPlayer.Controllers
 
             for (int sect = 0; sect < gameData.NumOfSections; sect++)
             {
-                int max = gameData.Probabilities[sect, 0];                
+                int max = gameData.Probabilities[sect, 0];
                 int idx = 0;
                 int numSame = 0;
 
@@ -215,7 +221,7 @@ namespace celtraJackpotPlayer.Controllers
             object[] dataObject = new object[gameData.Machines];
 
             for (int machine = 0; machine < gameData.Machines; machine++)
-                dataObject[machine] = new object[] { "Machine " + ((machine + 1).ToString()), selectedMachine[machine]};
+                dataObject[machine] = new object[] { "Machine " + ((machine + 1).ToString()), selectedMachine[machine] };
 
             chartSelectedMachine.SetSeries(new Series
             {
@@ -224,6 +230,10 @@ namespace celtraJackpotPlayer.Controllers
                 Data = new Data(dataObject)
             });
 
+
+            // -------------------------------------------------------------------------------------
+            //                              NON CHART STATISTICS
+            // -------------------------------------------------------------------------------------
 
             switch (gameData.isConstant)
             {
@@ -244,7 +254,7 @@ namespace celtraJackpotPlayer.Controllers
             ViewBag.GameLocation = gameData.GameLocation;
             ViewBag.NumOfPlays = gameData.NumOfPlays;
             ViewBag.LastGameTime = gameData.LastGameTime;
-            ViewBag.MaxProbability = Math.Round(maxProb*1000)/1000;
+            ViewBag.MaxProbability = Math.Round(maxProb * 1000) / 1000;
 
             List<Highcharts> charts = new List<Highcharts>();
             charts.Add(chartScore);
@@ -262,6 +272,70 @@ namespace celtraJackpotPlayer.Controllers
 
             return PartialView("_GamesPartial", games);
         }
+
+        public ActionResult MachineSelection(string address)
+        {
+
+            if (!Request.IsAjaxRequest())
+                return RedirectToAction("Index", "Home");
+
+            Game gameData = _GetGameFromDb(address);
+
+            if (gameData == null)
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+
+            gameData = Utilities.DataManipulation._PrepareGameObjectForComputation(gameData);
+
+            string selection = "";
+            int sectionIndex = 0;
+
+            for (int pull = 1; pull <= gameData.Pulls; pull++)
+            {
+                int rndNumber = rndGen.Next(1, 1001); // numbers 1-1000
+                int selectedMachine = 1;
+
+                // randomly select machine based on the weights
+                for (int i = 0; i < gameData.Machines - 1; i++)
+                {
+                    if (rndNumber > gameData.Probabilities[sectionIndex, i])
+                        selectedMachine++;
+                    else break;
+                }
+
+                selection += selectedMachine.ToString() + " ";
+
+                if (pull == gameData.Sections[sectionIndex])
+                    sectionIndex++;
+            }
+
+            return PartialView("_SelectionPartial", selection);
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     }
 }
