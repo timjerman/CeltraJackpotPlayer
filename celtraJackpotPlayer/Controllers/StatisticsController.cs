@@ -63,7 +63,7 @@ namespace celtraJackpotPlayer.Controllers
                 .SetTitle(new Title { Text = "Machine Weights" })
                 .SetXAxis(new XAxis { TickInterval = 1, Title = new XAxisTitle { Text = "Section" }, Min = 1, Max = gameData.NumOfSections })
                 .SetYAxis(new YAxis { Title = new YAxisTitle { Text = "Machine" } })
-                .SetTooltip(new Tooltip { Formatter = "function() { return 'machine: ' + this.series.name +' ('+ Highcharts.numberFormat(this.percentage, 1) +')'; }" })
+                .SetTooltip(new Tooltip { Formatter = "function() { return this.x + ', machine: ' + this.series.name +' ('+ Highcharts.numberFormat(this.percentage, 1) +')'; }" })
                 .SetCredits(new Credits { Enabled = false })
                 .SetPlotOptions(new PlotOptions
                 {
@@ -235,6 +235,13 @@ namespace celtraJackpotPlayer.Controllers
             //                              NON CHART STATISTICS
             // -------------------------------------------------------------------------------------
 
+            string sections = "";
+
+            for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                sections += gameData.Sections[sect].ToString() + ", ";
+
+            sections = sections.Remove(sections.Length - 2);
+
             switch (gameData.isConstant)
             {
                 case isProbabilityConstant.HighCertainty:
@@ -255,6 +262,7 @@ namespace celtraJackpotPlayer.Controllers
             ViewBag.NumOfPlays = gameData.NumOfPlays;
             ViewBag.LastGameTime = gameData.LastGameTime;
             ViewBag.MaxProbability = Math.Round(maxProb * 1000) / 1000;
+            ViewBag.Sections = sections;
 
             List<Highcharts> charts = new List<Highcharts>();
             charts.Add(chartScore);
@@ -310,32 +318,6 @@ namespace celtraJackpotPlayer.Controllers
 
             return PartialView("_SelectionPartial", selection);
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 }
