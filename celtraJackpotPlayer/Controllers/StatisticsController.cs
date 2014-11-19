@@ -142,7 +142,7 @@ namespace celtraJackpotPlayer.Controllers
                     }
                 });
 
-            Data seriesDataScore = new Data(new object[gameData.NumOfSections, 2]);
+            Data seriesDataScore = new Data(new object[gameData.NumOfPlays, 2]);
             for (int play = 0; play < gameData.NumOfPlays; play++)
             {
                 seriesDataScore.DoubleArrayData[play, 0] = play + 1;
@@ -181,16 +181,11 @@ namespace celtraJackpotPlayer.Controllers
 
             double[] selectedMachine = new double[gameData.Machines];
 
-            double maxProb = 0;
-
             for (int sect = 0; sect < gameData.NumOfSections; sect++)
             {
                 int max = gameData.Probabilities[sect, 0];
                 int idx = 0;
                 int numSame = 0;
-
-                if (maxProb < ((double)gameData.SectionsScore[sect, 0]) / gameData.SectionsCount[sect, 0])
-                    maxProb = ((double)gameData.SectionsScore[sect, 0]) / gameData.SectionsCount[sect, 0];
 
                 for (int machine = 1; machine < gameData.Machines; machine++)
                 {
@@ -202,9 +197,6 @@ namespace celtraJackpotPlayer.Controllers
                     }
                     else if (gameData.Probabilities[sect, machine] == max)
                         numSame++;
-
-                    if (maxProb < ((double)gameData.SectionsScore[sect, machine]) / gameData.SectionsCount[sect, machine])
-                        maxProb = ((double)gameData.SectionsScore[sect, machine]) / gameData.SectionsCount[sect, machine];
                 }
 
                 if (numSame > 0)
@@ -261,7 +253,7 @@ namespace celtraJackpotPlayer.Controllers
             ViewBag.GameLocation = gameData.GameLocation;
             ViewBag.NumOfPlays = gameData.NumOfPlays;
             ViewBag.LastGameTime = gameData.LastGameTime;
-            ViewBag.MaxProbability = Math.Round(maxProb * 1000) / 1000;
+            ViewBag.MaxProbability = Math.Round((double)gameData.Score[gameData.NumOfPlays-1]/ gameData.Pulls * 1000) / 1000;
             ViewBag.Sections = sections;
 
             List<Highcharts> charts = new List<Highcharts>();
@@ -319,5 +311,33 @@ namespace celtraJackpotPlayer.Controllers
             return PartialView("_SelectionPartial", selection);
         }
 
+
+        protected override void OnException(ExceptionContext filterContext)
+        {
+            //If the exeption is already handled we do nothing
+            if (filterContext.ExceptionHandled)
+                return;
+            else
+                _AddLogToDb("Error: " + filterContext.Exception.ToString(), false);
+
+            filterContext.ExceptionHandled = true;
+        }
+
+
+
+        // add a new log entry to the database
+        private void _AddLogToDb(string message, bool isSuccess)
+        {
+            Log log = new Log();
+            log.Message = message;
+            log.LogTime = System.DateTime.Now;
+            log.IsSuccess = isSuccess;
+
+            var db = new GameContext();
+            db.Logs.Add(log);
+            db.SaveChanges();
+
+            return;
+        }
     }
 }

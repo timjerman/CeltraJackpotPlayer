@@ -17,6 +17,10 @@ namespace celtraJackpotPlayer.Utilities
             gameData.ProbabilitiesStr = _IntMatrixToString(gameData.Probabilities);
             gameData.SectionsScoreStr = _IntMatrixToString(gameData.SectionsScore);
             gameData.SectionsCountStr = _IntMatrixToString(gameData.SectionsCount);
+            gameData.SectionsScore50Str = _IntMatrixToString(gameData.SectionsScore50);
+            gameData.SectionsCount50Str = _IntMatrixToString(gameData.SectionsCount50);
+            gameData.SectionsScore100Str = _IntMatrixToString(gameData.SectionsScore100);
+            gameData.SectionsCount100Str = _IntMatrixToString(gameData.SectionsCount100);
 
             return gameData;
         }
@@ -29,7 +33,10 @@ namespace celtraJackpotPlayer.Utilities
             gameData.Probabilities = _StringToIntMatrix(gameData.ProbabilitiesStr);
             gameData.SectionsScore = _StringToIntMatrix(gameData.SectionsScoreStr);
             gameData.SectionsCount = _StringToIntMatrix(gameData.SectionsCountStr);
-
+            gameData.SectionsScore50 = _StringToIntMatrix(gameData.SectionsScore50Str);
+            gameData.SectionsCount50 = _StringToIntMatrix(gameData.SectionsCount50Str);
+            gameData.SectionsScore100 = _StringToIntMatrix(gameData.SectionsScore100Str);
+            gameData.SectionsCount100 = _StringToIntMatrix(gameData.SectionsCount100Str);
             return gameData;
         }
 

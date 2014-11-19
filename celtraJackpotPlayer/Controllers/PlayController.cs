@@ -23,7 +23,7 @@ namespace celtraJackpotPlayer.Controllers
             _SetPlayerPlayState(true);
             _SetPlayerPlayProgress(0);
 
-            string address = "http://celtra-jackpot.com/5";
+            string address = "http://celtra-jackpot.com/4";
 
             // load game from db if exists else initialiaze a new object
             Game gameData = _InitializeGameData(address);
@@ -110,12 +110,14 @@ namespace celtraJackpotPlayer.Controllers
                 int expextedSectionIndex = 1;
                 int pullFromLastNewSection = 0;
                 int[] scorePerSection = new int[gameData.Machines];
+                int sectionIndex50 = 1;
+                int sectionIndex100 = 1;
 
                 // go through all availible pulls and set the section
                 for (int pull = 1; pull <= gameData.Pulls; pull++)
                 {
                     pullFromLastNewSection++;
-                    byte selectedMachine = _selectMachine(gameData.Probabilities, 0);
+                    byte selectedMachine = _selectMachine(gameData.Probabilities, 0); // the section is zero as in the first pass all machines for all sections have same probability
 
                     int machineScore = _GetMachinePullScore(gameData.GameLocation, selectedMachine, pull);
                     if (machineScore < 0)
@@ -127,6 +129,11 @@ namespace celtraJackpotPlayer.Controllers
                     // accumulate section probabilities
                     gameData.SectionsScore[sectionIndex, selectedMachine - 1] += machineScore;
                     gameData.SectionsCount[sectionIndex, selectedMachine - 1]++;
+
+                    gameData.SectionsScore50[sectionIndex50 - 1, selectedMachine - 1] += machineScore;
+                    gameData.SectionsCount50[sectionIndex50 - 1, selectedMachine - 1]++;
+                    gameData.SectionsScore100[sectionIndex100 - 1, selectedMachine - 1] += machineScore;
+                    gameData.SectionsCount100[sectionIndex100 - 1, selectedMachine - 1]++;
 
                     // check if a new section is found
                     if (((scorePerSection.Max() >= sectionStopCriteria) || forceNewSection) && searhForNewSection)
@@ -158,6 +165,12 @@ namespace celtraJackpotPlayer.Controllers
                         }
                         expextedSectionIndex++;
                     }
+
+                    // check if a new predefined section is struct
+                    if (pull == (sectionIndex50 * gameData.Pulls / gameData.SectionsScore50.GetLength(0)))
+                        sectionIndex50++;
+                    if (pull == (sectionIndex100 * gameData.Pulls / gameData.SectionsScore100.GetLength(0)))
+                        sectionIndex100++;
 
                     // save progress for web display
                     if (pull % (gameData.Pulls / 100) == 0)
@@ -212,7 +225,7 @@ namespace celtraJackpotPlayer.Controllers
                 gameData.isConstant = _isReturnProbabilityConstant(gameData, sectionProbabilities, kolSmiThr, partDiffThr);
 
                 // average probabilities
-                if (gameData.isConstant != isProbabilityConstant.NotConstant)
+                if (gameData.isConstant != isProbabilityConstant.NotConstant || gameData.NumOfSections >= 50)
                     sectionProbabilities = _AverageProbabilities(sectionProbabilities, gameData);
 
                 double[] sumPerMachine = new double[gameData.Machines];
@@ -300,11 +313,13 @@ namespace celtraJackpotPlayer.Controllers
                 // -------------------------- PULLS ON THE MACHINE  -----------------------------------------------------------------------------
 
                 int sectionIndex = 0;
+                int sectionIndex50 = 1;
+                int sectionIndex100 = 1;
 
                 // go through all availible pulls and set the section
                 for (int pull = 1; pull <= gameData.Pulls; pull++)
                 {
-                    byte selectedMachine = _selectMachine(gameData.Probabilities, 0);
+                    byte selectedMachine = _selectMachine(gameData.Probabilities, sectionIndex);
 
                     int machineScore = _GetMachinePullScore(gameData.GameLocation, selectedMachine, pull);
                     if (machineScore < 0)
@@ -316,15 +331,101 @@ namespace celtraJackpotPlayer.Controllers
                     gameData.SectionsScore[sectionIndex, selectedMachine - 1] += machineScore;
                     gameData.SectionsCount[sectionIndex, selectedMachine - 1]++;
 
+                    gameData.SectionsScore50[sectionIndex50 - 1, selectedMachine - 1] += machineScore;
+                    gameData.SectionsCount50[sectionIndex50 - 1, selectedMachine - 1]++;
+                    gameData.SectionsScore100[sectionIndex100 - 1, selectedMachine - 1] += machineScore;
+                    gameData.SectionsCount100[sectionIndex100 - 1, selectedMachine - 1]++;
+
                     // check if a new section is struct
                     if (pull == gameData.Sections[sectionIndex])
                         sectionIndex++;
+
+                    // check if a new predefined section is struct
+                    if (pull == (sectionIndex50 * gameData.Pulls / gameData.SectionsScore50.GetLength(0)))
+                        sectionIndex50++;
+                    if (pull == (sectionIndex100 * gameData.Pulls / gameData.SectionsScore100.GetLength(0)))
+                        sectionIndex100++;
 
                     // save progress for web display
                     if (pull % (gameData.Pulls / 100) == 0)
                         _SetPlayerPlayProgress(++progress - 1);
 
                 }
+
+                // --------------------------   CHECK IF THE DETAILED SECTIONS CAN BE USED   ----------------------------------------------------------------
+
+                // check if the detailed sections are ready to replace the custom one
+                // there needs to be enough hits in the new sections to replace the old one
+                if (gameData.isConstant == isProbabilityConstant.NotConstant)
+                {
+                    bool justChanged = false;
+
+                    if (gameData.SectionStatus == sectionsInUse.Custom && gameData.NumOfSections <= gameData.SectionsScore50.GetLength(0) + 10)
+                    {
+                        int numMax = 0;
+                        for (int sect = 0; sect < gameData.SectionsScore50.GetLength(0); sect++)
+                        {
+                            int max = 0;
+                            for (int machine = 0; machine < gameData.Machines; machine++)
+                                if (gameData.SectionsScore50[sect, machine] > max)
+                                    max = gameData.SectionsScore50[sect, machine];
+
+                            if (max > 5 * ((double)score) / gameData.SectionsScore50.GetLength(0))
+                                numMax++;
+                        }
+
+                        // if at least half of the new sections have enough hits replace old sections
+                        if (numMax > gameData.SectionsScore50.GetLength(0) / 2)
+                        {
+                            int[] newSections = new int[gameData.SectionsScore50.GetLength(0)];
+                            for (int i = 0; i < newSections.Length; i++)
+                                newSections[i] = (i + 1) * gameData.Pulls / newSections.Length;
+
+                            gameData.Sections = newSections;
+                            gameData.NumOfSections = newSections.Length;
+                            gameData.SectionsCount = gameData.SectionsCount50;
+                            gameData.SectionsScore = gameData.SectionsScore50;
+                            gameData.Probabilities = new int[gameData.NumOfSections, gameData.Machines];
+
+                            gameData.SectionStatus = sectionsInUse.Detailed;
+
+                            justChanged = true;
+                        }
+                    }
+
+                    if (gameData.SectionStatus != sectionsInUse.VeryDetailed && gameData.NumOfSections <= gameData.SectionsScore100.GetLength(0) + 10 && !justChanged)
+                    {
+                        int numMax = 0;
+                        for (int sect = 0; sect < gameData.SectionsScore100.GetLength(0); sect++)
+                        {
+                            int max = 0;
+                            for (int machine = 0; machine < gameData.Machines; machine++)
+                                if (gameData.SectionsScore100[sect, machine] > max)
+                                    max = gameData.SectionsScore100[sect, machine];
+
+                            if (max > 5 * ((double)score) / gameData.SectionsScore100.GetLength(0))
+                                numMax++;
+                        }
+
+                        // if at least half of the new sections have enough hits replace old sections
+                        if (numMax > gameData.SectionsScore100.GetLength(0) / 2)
+                        {
+                            int[] newSections = new int[gameData.SectionsScore100.GetLength(0)];
+                            for (int i = 0; i < newSections.Length; i++)
+                                newSections[i] = (i + 1) * gameData.Pulls / newSections.Length;
+
+                            gameData.Sections = newSections;
+                            gameData.NumOfSections = newSections.Length;
+                            gameData.SectionsCount = gameData.SectionsCount100;
+                            gameData.SectionsScore = gameData.SectionsScore100;
+                            gameData.Probabilities = new int[gameData.NumOfSections, gameData.Machines];
+
+                            gameData.SectionStatus = sectionsInUse.VeryDetailed;
+                        }
+                    }
+                }
+
+
 
                 // --------------------------   COMPUTE WEIGHTS FOR THE NEXT PASS   -----------------------------------------------------------------------------
 
@@ -339,11 +440,11 @@ namespace celtraJackpotPlayer.Controllers
                     gameData.isConstant = _isReturnProbabilityConstant(gameData, sectionProbabilities, kolSmiThr, partDiffThr);
 
                 // average probabilities for constant distributions
-                if (gameData.isConstant != isProbabilityConstant.NotConstant)
+                if (gameData.isConstant != isProbabilityConstant.NotConstant || gameData.NumOfSections >= 50)
                     sectionProbabilities = _AverageProbabilities(sectionProbabilities, gameData);
 
                 // remove machines that have a small count compared to the best
-                if (gameData.NumOfPlays > 4) // don't start this too soon
+                if (gameData.NumOfPlays > 3) // don't start this too soon
                 {
                     for (int sect = 0; sect < gameData.NumOfSections; sect++)
                     {
@@ -354,14 +455,15 @@ namespace celtraJackpotPlayer.Controllers
                         for (int machine = 0; machine < gameData.Machines; machine++)
                         {
                             if (gameData.SectionsCount[sect, machine] > maxCount && sectionProbabilities[sect, machine] != 0)
+                            {
                                 maxCount = gameData.SectionsCount[sect, machine];
-                            if (sectionProbabilities[sect, machine] > max)
                                 max = sectionProbabilities[sect, machine];
+                            }
                         }
 
                         for (int machine = 0; machine < gameData.Machines; machine++)
                         {
-                            if (gameData.SectionsCount[sect, machine] < maxCount * 0.5 && sectionProbabilities[sect, machine] < max * 0.99)
+                            if (gameData.SectionsCount[sect, machine] < maxCount * 0.5 && sectionProbabilities[sect, machine] < max * 0.9)
                                 sectionProbabilities[sect, machine] = 0;
                             sum += sectionProbabilities[sect, machine];
                         }
@@ -381,7 +483,10 @@ namespace celtraJackpotPlayer.Controllers
                             maxVal = sectionProbabilities[sect, machine];
 
                     double sectProbThrDyn = sectProbThr * (1 + (gameData.NumOfPlays - 2) * maxVal * 0.5);
+                    if (sectProbThrDyn > 0.6)
+                        sectProbThrDyn = 0.6;
                     double funcPower = (1 + (gameData.NumOfPlays - 2) * maxVal);
+                    if (funcPower > 5) funcPower = 5;
 
                     // apply a power function and threshold low probabilities
                     for (int machine = 0; machine < gameData.Machines; machine++)
@@ -438,9 +543,8 @@ namespace celtraJackpotPlayer.Controllers
                                 maxBest = gameData.SectionsScore[sect, idx];
 
                         // there should be enough hits for trying to determine anything - so not to have throubles with low probabilities
-                        if (maxBest > 15)
+                        if (maxBest > 13)
                         {
-
                             double factor = sumMax2 / sumMax1;
 
                             // for high confidence increase the speed of determining the best machine
@@ -462,12 +566,6 @@ namespace celtraJackpotPlayer.Controllers
                         }
 
                         // remove machines that have a very small sum, at the same time normalize
-                        for (int machine = 0; machine < gameData.Machines; machine++)
-                            if (sumPerMachine[machine] < sumMax1 * 0.5)
-                            {
-                                for (int sect = 0; sect < gameData.NumOfSections; sect++)
-                                    sectionProbabilities[sect, machine] = 0;
-                            }
                         for (int sect = 0; sect < gameData.NumOfSections; sect++)
                         {
                             double sum = 0;
@@ -494,7 +592,6 @@ namespace celtraJackpotPlayer.Controllers
                         gameData.Probabilities[sect, machine] = (int)Math.Round(1000 * sum);   // probabilities are converted to cummulative sum
                     }
                 }
-
             }
 
             if (gameData.NumOfPlays > gameData.Score.Length)
@@ -702,6 +799,12 @@ namespace celtraJackpotPlayer.Controllers
                 gameData.Probabilities = new int[100, gameData.Machines];
                 gameData.SectionsScore = new int[100, gameData.Machines];
                 gameData.SectionsCount = new int[100, gameData.Machines];
+
+                gameData.SectionsScore50 = new int[50, gameData.Machines];
+                gameData.SectionsCount50 = new int[50, gameData.Machines];
+                gameData.SectionsScore100 = new int[100, gameData.Machines];
+                gameData.SectionsCount100 = new int[100, gameData.Machines];
+                gameData.SectionStatus = sectionsInUse.Custom;
             }
             else gameData = Utilities.DataManipulation._PrepareGameObjectForComputation(gameData);
 
