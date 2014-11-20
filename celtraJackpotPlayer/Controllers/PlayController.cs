@@ -71,8 +71,8 @@ namespace celtraJackpotPlayer.Controllers
             byte sectionStopCriteria = 5; // when a machine gathers this score create a new section
             byte maxSectionFraction = 10; // what is the maximum possible section -> all pulls/this
             double lowProbabilityThr = 0.05; // the threshold to distinguish between two modes -> for low probabilities less confidently assign weights
-            double kolSmiThr = 0.5; // threshold for the kolmogorov smirnov test for testing if the probabilities are konstant
-            double partDiffThr = 0.1; //threshold for the second constant probability test
+            double kolSmiThr = 0.475; // threshold for the kolmogorov smirnov test for testing if the probabilities are konstant
+            double partDiffThr = 0.09; //threshold for the second constant probability test
             double initFactThrToCut = 0.7;  // for constant distributions: if the second highest probability / the highest probability is greater than this factor only use the best machine
             double maxFactThrToCut = 0.95;
             double sectProbThr = 0.2; // initial threshold for thresholding low probabilities
@@ -110,6 +110,7 @@ namespace celtraJackpotPlayer.Controllers
                 int[] scorePerSection = new int[gameData.Machines];
                 int sectionIndex50 = 1;
                 int sectionIndex100 = 1;
+                bool sectionDetermined = false;
 
                 // go through all availible pulls and set the section
                 for (int pull = 1; pull <= gameData.Pulls; pull++)
@@ -139,12 +140,14 @@ namespace celtraJackpotPlayer.Controllers
                         gameData.Sections[sectionIndex] = ((int)Math.Ceiling(pull / 10.0)) * 10; // round the new section
                         searhForNewSection = false;
                         forceNewSection = false;
+                        sectionDetermined = true;
                     }
 
                     // when the section border is hit progress to the next one
                     if (pull == gameData.Sections[sectionIndex])
                     {
                         sectionIndex++;
+                        sectionDetermined = false;
                         pullFromLastNewSection = 0;
                         for (int i = 0; i < scorePerSection.Length; i++) //reset
                             scorePerSection[i] = 0;
@@ -154,7 +157,7 @@ namespace celtraJackpotPlayer.Controllers
                     }
 
                     // lets make the sections at least the size of all pulls / maxSectionFraction
-                    if ((pullFromLastNewSection >= (gameData.Pulls / maxSectionFraction - 1)) && scorePerSection.Max() > sectionStopCriteria / 2)
+                    if ((pullFromLastNewSection >= (gameData.Pulls / maxSectionFraction - 1)) && scorePerSection.Max() > sectionStopCriteria / 2 && !sectionDetermined)
                     {
                         if (sectionIndex < expextedSectionIndex)
                         {
@@ -368,7 +371,7 @@ namespace celtraJackpotPlayer.Controllers
                                 if (gameData.SectionsScore50[sect, machine] > max)
                                     max = gameData.SectionsScore50[sect, machine];
 
-                            if (max > 3.5 * ((double)score) / gameData.SectionsScore50.GetLength(0))
+                            if (max > 3.5 * ((double)score) / gameData.SectionsScore50.GetLength(0) * Math.Pow((double)score / gameData.Pulls, 0.1))
                                 numMax++;
                         }
 
@@ -401,7 +404,7 @@ namespace celtraJackpotPlayer.Controllers
                                 if (gameData.SectionsScore100[sect, machine] > max)
                                     max = gameData.SectionsScore100[sect, machine];
 
-                            if (max > 4.5 * ((double)score) / gameData.SectionsScore100.GetLength(0))
+                            if (max > 4.5 * ((double)score) / gameData.SectionsScore50.GetLength(0) * Math.Pow((double)score / gameData.Pulls, 0.1))
                                 numMax++;
                         }
 
@@ -466,6 +469,9 @@ namespace celtraJackpotPlayer.Controllers
                             sum += sectionProbabilities[sect, machine];
                         }
 
+                        if (sum == 0)
+                            sum = 1;
+
                         for (int machine = 0; machine < gameData.Machines; machine++)
                             sectionProbabilities[sect, machine] = sectionProbabilities[sect, machine] / sum;
                     }
@@ -504,6 +510,10 @@ namespace celtraJackpotPlayer.Controllers
                 }
 
                 double[] sumPerMachine = new double[gameData.Machines];
+                double[] worstSectProb = new double[gameData.Machines];
+
+                for (int machine = 0; machine < gameData.Machines; machine++)
+                    worstSectProb[machine] = 1000;
 
                 // normalize so that sum for same section is 1
                 for (int sect = 0; sect < gameData.NumOfSections; sect++)
@@ -511,12 +521,22 @@ namespace celtraJackpotPlayer.Controllers
                     double sum = 0;
                     for (int machine = 0; machine < gameData.Machines; machine++)
                         sum += sectionProbabilities[sect, machine];
+
+                    if (sum == 0)
+                        sum = 1;
+
                     for (int machine = 0; machine < gameData.Machines; machine++)
                     {
                         sectionProbabilities[sect, machine] = sectionProbabilities[sect, machine] / sum;
                         sumPerMachine[machine] += sectionProbabilities[sect, machine];
+                        if (worstSectProb[machine] > sectionProbabilities[sect, machine])
+                            worstSectProb[machine] = sectionProbabilities[sect, machine];
                     }
                 }
+
+                // take into account the variability: remove the worst probability
+                for (int machine = 0; machine < gameData.Machines; machine++)
+                    sumPerMachine[machine] -= worstSectProb[machine];
 
                 // if the data is found to be constant give more weight to it
                 if (gameData.isConstant != isProbabilityConstant.NotConstant)
@@ -528,12 +548,16 @@ namespace celtraJackpotPlayer.Controllers
                         int idx = (sumPerMachine[0] > sumPerMachine[1]) ? 0 : 1;
 
                         for (int machine = 2; machine < gameData.Machines; machine++)
+                        {
                             if (sumPerMachine[machine] > sumMax1)
                             {
                                 sumMax2 = sumMax1;
                                 sumMax1 = sumPerMachine[machine];
                                 idx = machine;
                             }
+                            if (sumPerMachine[machine] > sumMax2 && sumPerMachine[machine] < sumMax1)
+                                sumMax2 = sumPerMachine[machine];
+                        }
 
                         int maxBest = 0;
                         for (int sect = 0; sect < gameData.NumOfSections; sect++)
@@ -573,6 +597,10 @@ namespace celtraJackpotPlayer.Controllers
                                     sectionProbabilities[sect, machine] = 0;
                                 sum += sectionProbabilities[sect, machine];
                             }
+
+                            if (sum == 0)
+                                sum = 1;
+
                             for (int machine = 0; machine < gameData.Machines; machine++)
                                 sectionProbabilities[sect, machine] = sectionProbabilities[sect, machine] / sum;
                         }
@@ -589,6 +617,8 @@ namespace celtraJackpotPlayer.Controllers
                         sum += sectionProbabilities[sect, machine];
                         gameData.Probabilities[sect, machine] = (int)Math.Round(1000 * sum);   // probabilities are converted to cummulative sum
                     }
+                    if (sum == 0)
+                        gameData.Probabilities[sect, gameData.Machines - 1] = 1000;
                 }
             }
 
@@ -646,8 +676,23 @@ namespace celtraJackpotPlayer.Controllers
         // test the probability using the kolmogorov-smirnov test
         private isProbabilityConstant _isReturnProbabilityConstant(Game gameData, double[,] sectionProb, double kolSmiThr, double partDiffThr)
         {
+            if (gameData.NumOfSections < 5)
+                return isProbabilityConstant.NotConstant;
+
             double[] part1VsPart2 = new double[gameData.Machines];
             double sumKolSmi = 0;
+
+            double[] sectionsDiff = new double[gameData.NumOfSections];
+
+            sectionsDiff[0] = gameData.NumOfSections * ((double)gameData.Sections[0]) / gameData.Pulls;
+            for (int sect = 1; sect < gameData.NumOfSections; sect++)
+                sectionsDiff[sect] = gameData.NumOfSections * ((double)(gameData.Sections[sect] - gameData.Sections[sect - 1])) / gameData.Pulls;
+
+            double meanSectionDiff = sectionsDiff.Average();
+
+            for (int sect = 0; sect < gameData.NumOfSections; sect++)
+                if (Math.Abs(sectionsDiff[sect] - meanSectionDiff) > 0.3 * meanSectionDiff)
+                    sectionsDiff[sect] = meanSectionDiff;
 
             for (int machine = 0; machine < gameData.Machines; machine++)
             {
@@ -668,13 +713,13 @@ namespace celtraJackpotPlayer.Controllers
                     cumSumTest[sect] = cumSumTest[sect] / maxCumSumTest;
                     cumSumTheory = ((double)(sect + 1)) / gameData.NumOfSections;
 
-                    double localDiff = Math.Abs(cumSumTest[sect] - cumSumTheory);
+                    double localDiff = Math.Abs(cumSumTest[sect] - cumSumTheory) * sectionsDiff[sect];
                     localDiff *= (localDiff * gameData.NumOfSections);
 
                     if (localDiff > maxDiff)
                         maxDiff = localDiff;
 
-                    if (sect < gameData.NumOfSections / 2)
+                    if (gameData.Sections[sect] < gameData.Pulls / 2)
                         sumPart1 += sectionProb[sect, machine];
                     else
                         sumPart2 += sectionProb[sect, machine];
