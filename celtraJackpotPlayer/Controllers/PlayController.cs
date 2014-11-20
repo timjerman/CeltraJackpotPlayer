@@ -18,12 +18,10 @@ namespace celtraJackpotPlayer.Controllers
         //
         // GET: /Play/Start
 
-        public object Start()//(string address)
+        public object Start(string address)
         {
             _SetPlayerPlayState(true);
             _SetPlayerPlayProgress(0);
-
-            string address = "http://celtra-jackpot.com/4";
 
             // load game from db if exists else initialiaze a new object
             Game gameData = _InitializeGameData(address);
@@ -370,7 +368,7 @@ namespace celtraJackpotPlayer.Controllers
                                 if (gameData.SectionsScore50[sect, machine] > max)
                                     max = gameData.SectionsScore50[sect, machine];
 
-                            if (max > 5 * ((double)score) / gameData.SectionsScore50.GetLength(0))
+                            if (max > 3.5 * ((double)score) / gameData.SectionsScore50.GetLength(0))
                                 numMax++;
                         }
 
@@ -403,7 +401,7 @@ namespace celtraJackpotPlayer.Controllers
                                 if (gameData.SectionsScore100[sect, machine] > max)
                                     max = gameData.SectionsScore100[sect, machine];
 
-                            if (max > 5 * ((double)score) / gameData.SectionsScore100.GetLength(0))
+                            if (max > 4.5 * ((double)score) / gameData.SectionsScore100.GetLength(0))
                                 numMax++;
                         }
 
@@ -485,7 +483,7 @@ namespace celtraJackpotPlayer.Controllers
                     double sectProbThrDyn = sectProbThr * (1 + (gameData.NumOfPlays - 2) * maxVal * 0.5);
                     if (sectProbThrDyn > 0.6)
                         sectProbThrDyn = 0.6;
-                    double funcPower = (1 + (gameData.NumOfPlays - 2) * maxVal);
+                    double funcPower = (1 + (gameData.NumOfPlays - 2) * maxVal * 1.5);
                     if (funcPower > 5) funcPower = 5;
 
                     // apply a power function and threshold low probabilities
@@ -815,7 +813,7 @@ namespace celtraJackpotPlayer.Controllers
         private List<Log> _GetLogsFromDb()
         {
             var db = new GameContext();
-            List<Log> returnList = db.Logs.OrderByDescending(x => x.LogID).Take(40).ToList();
+            List<Log> returnList = db.Logs.OrderByDescending(x => x.LogID).Take(100).ToList();
 
             return returnList;
         }

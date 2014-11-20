@@ -9,9 +9,9 @@
 <!-- form for submiting the game address -->
 <form class="form-horizontal" role="form" id="post-form">
     <div class="form-group">
-        <label class="control-label col-sm-2" for="Address">Game Server:</label>
+        <label class="control-label col-sm-2" for="address">Game Server:</label>
         <div class="col-sm-6">
-            <input class="form-control" placeholder="Address" type="text" id="Address">
+            <input class="form-control" placeholder="Address" type="text" id="address">
         </div>
         <div class="col-sm-2">
             <button class="btn btn-default" type="submit" id="post-play">Play</button>
@@ -27,7 +27,9 @@
         </div>
     </div>
 </div>
-
+<div class="address-alert">
+    <div id="address-alert-msg"></div>
+</div>
 <hr />
 <h2>Log</h2>
 
@@ -55,7 +57,7 @@
         <label class="control-label col-sm-2">Select played game:</label>
         <div class="col-sm-6">
             <div class="statGames">
-                <select class="selectpicker" id="stat-game-selector"></select>
+                <select class="selectpicker" data-width="100%" id="stat-game-selector"></select>
             </div>
         </div>
         <div class="col-sm-2">
@@ -66,7 +68,9 @@
         </div>
     </div>
 </form>
-
+<div class="stat-alert">
+    <div id="sta-alert-msg"></div>
+</div>
 
 
 <div class="statisticsCharts"></div>
@@ -106,6 +110,9 @@
         </div>
     </div>
 </div>
+
+<!-- hidden input for result storing-->
+<input type="hidden" class="returned-value">
 
 
 @section Scripts {
@@ -150,32 +157,48 @@
             // start the player on the server side + start the progress circle
             $('#post-play').on("click", function () {
 
-                var dataString = 'address';
+                var address = $('#address').val();
 
-                $('#post-form').hide();
+                if (address == "") {
+                    $('.address-alert').replaceWith('<div class="address-alert">﻿<div class="alert alert-warning alert-dismissible" id="address-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Please insert a valid game address.</div></div>');
+                    autoCloseAlert('#address-alert-msg', 10000);
+                }
+                else {
+                    $('#post-form').hide();
 
-                $('#circular-progress-main').show();
-                setCircularProgress(0);
+                    $('#circular-progress-main').show();
+                    setCircularProgress(0);
 
-                $.ajax({
-                    type: "POST",
-                    url: "@Url.Action("Start", "Play")",
-                    data: dataString
-                })
-                    .success(function (response) {
-                        updateLog();
-                        updateStatisticsAddressList();
-                        $('#post-form').show();
-                        $('#circular-progress-main').hide();
+                    $.ajax({
+                        type: "POST",
+                        url: "@Url.Action("Start", "Play")",
+                        data: { address: address },
                     })
-                    .error(function () {
-                        updateLog();
-                        $('#alertModal').modal('toggle');
-                        $('#post-form').show();
-                        $('#circular-progress-main').hide();
-                    });
+                        .success(function (response) {
+                            $('.returned-value').val(response);
+                            updateLog();
+                            updateStatisticsAddressList();
+                            $('#post-form').show();
+                            $('#circular-progress-main').hide();
 
-                setTimeout(isPlayerRunning, 500);
+                            if (response == "ERR") {
+                                $('.address-alert').replaceWith('<div class="address-alert">﻿<div class="alert alert-warning alert-dismissible" id="address-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Please check if the game address is valid.</div></div>');
+                                autoCloseAlert('#address-alert-msg', 10000);
+                            }
+                        })
+                        .error(function () {
+                            $('.returned-value').val("ERR");
+                            updateLog();
+                            $('#alertModal').modal('toggle');
+                            $('#post-form').show();
+                            $('#circular-progress-main').hide();
+
+                            $('.address-alert').replaceWith('<div class="address-alert">﻿<div class="alert alert-warning alert-dismissible" id="address-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Please check if the game address is valid.</div></div>');
+                            autoCloseAlert('#address-alert-msg', 10000);
+                        });
+
+                    setTimeout(isPlayerRunning, 500);
+                }
 
                 return false;
             });
@@ -244,10 +267,13 @@
                         $('.selectpicker').selectpicker();
                         // display statistics for the latest
                         var address = $('#stat-game-selector option:first-child').val();
-                        if (address != "") {
+                        if (address != "" && typeof address !== "undefined") {
                             drawStatisticsCharts(address);
                         }
                     })
+                    .error(function () {
+                        $('.statGames').replaceWith('<div class="statGames"><select class="selectpicker" data-width="100%" id="stat-game-selector"></select></div>');
+                    });
             }
 
             // draw the statistics partial with charts
@@ -270,38 +296,48 @@
 
                 // display statistics for the latest
                 var address = $('#stat-game-selector').find(':selected').val();
-                if (address != "") {
+                if (address != "" && typeof address !== "undefined") {
                     drawStatisticsCharts(address);
+                }
+                else {
+                    $('.stat-alert').replaceWith('<div class="stat-alert">﻿<div class="alert alert-warning alert-dismissible" id="stat-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Please select a played game if available.</div></div>');
+                    autoCloseAlert('#stat-alert-msg', 10000);
                 }
 
                 return false;
             });
 
-
-
-            // display statistics for selected game
+            // display generated pulls for the selected game
             $('#post-display-selection').on("click", function () {
 
-                // display statistics for the latest
                 var address = $('#stat-game-selector').find(':selected').val();
-                if (address != "") {
+                if (address != "" && typeof address !== "undefined") {
                     $.ajax({
                         type: "POST",
                         url: "@Url.Action("MachineSelection", "Statistics")",
-                    data: { address: address },
-                })
-                    .success(function (response) {
-                        $('#selectionModalBody').replaceWith(response);
-                        $('#selectionModal').modal('toggle');
+                        data: { address: address },
                     })
-                    .error(function () {
-                        $('#selectionModalBody').replaceWith('<div class="modal-body" id="selectionModalBody">An error occured.</div>');
-                        $('#selectionModal').modal('toggle');
-                    });
+                        .success(function (response) {
+                            $('#selectionModalBody').replaceWith(response);
+                            $('#selectionModal').modal('toggle');
+                        })
+                        .error(function () {
+                            $('#selectionModalBody').replaceWith('<div class="modal-body" id="selectionModalBody">An error occured.</div>');
+                            $('#selectionModal').modal('toggle');
+                        });
+                }
+                else {
+                    $('.stat-alert').replaceWith('<div class="stat-alert">﻿<div class="alert alert-warning alert-dismissible" id="stat-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Please select a played game if available.</div></div>');
+                    autoCloseAlert('#stat-alert-msg', 10000);
                 }
 
                 return false;
             });
+
+            function autoCloseAlert(selector, delay) {
+                var alert = $(selector).alert();
+                window.setTimeout(function () { alert.alert('close') }, delay);
+            }
 
 
         });

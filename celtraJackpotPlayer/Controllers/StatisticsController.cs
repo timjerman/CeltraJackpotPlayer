@@ -61,8 +61,8 @@ namespace celtraJackpotPlayer.Controllers
             Highcharts chartProbability = new Highcharts("chartProbability")
                 .InitChart(new Chart { DefaultSeriesType = ChartTypes.Area, SpacingTop = 0, SpacingBottom = 0, Height = 300 })
                 .SetTitle(new Title { Text = "Machine Weights" })
-                .SetXAxis(new XAxis { TickInterval = 1, Title = new XAxisTitle { Text = "Section" }, Min = 1, Max = gameData.NumOfSections })
-                .SetYAxis(new YAxis { Title = new YAxisTitle { Text = "Machine" } })
+                .SetXAxis(new XAxis { Title = new XAxisTitle { Text = "Section" }, Min = 1, Max = gameData.NumOfSections})
+                .SetYAxis(new YAxis { Title = new YAxisTitle { Text = "Machine" }})
                 .SetTooltip(new Tooltip { Formatter = "function() { return this.x + ', machine: ' + this.series.name +' ('+ Highcharts.numberFormat(this.percentage, 1) +')'; }" })
                 .SetCredits(new Credits { Enabled = false })
                 .SetPlotOptions(new PlotOptions
@@ -318,26 +318,16 @@ namespace celtraJackpotPlayer.Controllers
             if (filterContext.ExceptionHandled)
                 return;
             else
-                _AddLogToDb("Error: " + filterContext.Exception.ToString(), false);
+            {
+                Log log = new Log(){IsSuccess = false, LogTime = System.DateTime.Now};
+                log.Message = "Error: " + filterContext.Exception.ToString();
+
+                var db = new GameContext();
+                db.Logs.Add(log);
+                db.SaveChanges();
+            }
 
             filterContext.ExceptionHandled = true;
-        }
-
-
-
-        // add a new log entry to the database
-        private void _AddLogToDb(string message, bool isSuccess)
-        {
-            Log log = new Log();
-            log.Message = message;
-            log.LogTime = System.DateTime.Now;
-            log.IsSuccess = isSuccess;
-
-            var db = new GameContext();
-            db.Logs.Add(log);
-            db.SaveChanges();
-
-            return;
         }
     }
 }
