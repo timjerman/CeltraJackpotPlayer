@@ -371,7 +371,7 @@ namespace celtraJackpotPlayer.Controllers
                                 if (gameData.SectionsScore50[sect, machine] > max)
                                     max = gameData.SectionsScore50[sect, machine];
 
-                            if (max > 3.5 * ((double)score) / gameData.SectionsScore50.GetLength(0) * Math.Pow((double)score / gameData.Pulls, 0.1))
+                            if (max > 3.5 * ((double)score) / gameData.SectionsScore50.GetLength(0) * Math.Pow((double)score / gameData.Pulls, 0.15))
                                 numMax++;
                         }
 
@@ -404,7 +404,7 @@ namespace celtraJackpotPlayer.Controllers
                                 if (gameData.SectionsScore100[sect, machine] > max)
                                     max = gameData.SectionsScore100[sect, machine];
 
-                            if (max > 4.5 * ((double)score) / gameData.SectionsScore50.GetLength(0) * Math.Pow((double)score / gameData.Pulls, 0.1))
+                            if (max > 4.5 * ((double)score) / gameData.SectionsScore50.GetLength(0) * Math.Pow((double)score / gameData.Pulls, 0.15))
                                 numMax++;
                         }
 
@@ -486,11 +486,11 @@ namespace celtraJackpotPlayer.Controllers
                         if (sectionProbabilities[sect, machine] > maxVal)
                             maxVal = sectionProbabilities[sect, machine];
 
-                    double sectProbThrDyn = sectProbThr * (1 + (gameData.NumOfPlays - 2) * maxVal * 0.5);
-                    if (sectProbThrDyn > 0.6)
-                        sectProbThrDyn = 0.6;
-                    double funcPower = (1 + (gameData.NumOfPlays - 2) * maxVal * 1.5);
-                    if (funcPower > 5) funcPower = 5;
+                    double sectProbThrDyn = sectProbThr * (1 + (gameData.NumOfPlays - 2) * maxVal);
+                    if (sectProbThrDyn > 0.65)
+                        sectProbThrDyn = 0.65;
+                    double funcPower = (1 + (gameData.NumOfPlays - 2) * maxVal * 2);
+                    if (funcPower > 7) funcPower = 7;
 
                     // apply a power function and threshold low probabilities
                     for (int machine = 0; machine < gameData.Machines; machine++)
@@ -987,6 +987,24 @@ namespace celtraJackpotPlayer.Controllers
             List<Log> logs = _GetLogsFromDb();
 
             return PartialView("_LogPartial", logs);
+        }
+
+        //
+        // GET: /Play/Delete
+
+        public bool Delete(string address)
+        {
+            address = Utilities.DataManipulation._PrepareAddress(address);
+
+            var db = new GameContext();
+            Game gameData = db.Games.SingleOrDefault(game => game.GameLocation == address);
+            if (gameData != null)
+            {
+                db.Games.Remove(gameData);
+                db.SaveChanges();
+            }
+
+            return (gameData != null);
         }
 
         protected override void OnException(ExceptionContext filterContext)

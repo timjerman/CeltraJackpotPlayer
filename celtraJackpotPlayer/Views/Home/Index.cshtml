@@ -16,6 +16,9 @@
         <div class="col-sm-2">
             <button class="btn btn-default" type="submit" id="post-play">Play</button>
         </div>
+        <div class="col-sm-2">
+            <button class="btn btn-default" type="submit" id="post-delete">Delete game data</button>
+        </div>
     </div>
 </form>
 
@@ -159,7 +162,7 @@
 
                 var address = $('#address').val();
 
-                if (address == "") {
+                if (address == "" || typeof address === "undefined") {
                     $('.address-alert').replaceWith('<div class="address-alert">﻿<div class="alert alert-warning alert-dismissible" id="address-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Please insert a valid game address.</div></div>');
                     autoCloseAlert('#address-alert-msg', 10000);
                 }
@@ -182,8 +185,7 @@
                             $('#circular-progress-main').hide();
 
                             if (response == "ERR") {
-                                $('.address-alert').replaceWith('<div class="address-alert">﻿<div class="alert alert-warning alert-dismissible" id="address-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Please check if the game address is valid.</div></div>');
-                                autoCloseAlert('#address-alert-msg', 10000);
+                                displayBadAddress();
                             }
                         })
                         .error(function () {
@@ -193,8 +195,7 @@
                             $('#post-form').show();
                             $('#circular-progress-main').hide();
 
-                            $('.address-alert').replaceWith('<div class="address-alert">﻿<div class="alert alert-warning alert-dismissible" id="address-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Please check if the game address is valid.</div></div>');
-                            autoCloseAlert('#address-alert-msg', 10000);
+                            displayBadAddress();
                         });
 
                     setTimeout(isPlayerRunning, 500);
@@ -334,11 +335,58 @@
                 return false;
             });
 
+            // closes the warning alert after some delay
             function autoCloseAlert(selector, delay) {
                 var alert = $(selector).alert();
                 window.setTimeout(function () { alert.alert('close') }, delay);
             }
 
+            // displays a warning alert
+            function displayBadAddress() {
+                $('.address-alert').replaceWith('<div class="address-alert">﻿<div class="alert alert-warning alert-dismissible" id="address-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Please check if the game address is valid.</div></div>');
+                autoCloseAlert('#address-alert-msg', 10000);
+            }
+
+            // displays a warning alert - game not removed
+            function displayGameNotRemoved() {
+                $('.address-alert').replaceWith('<div class="address-alert">﻿<div class="alert alert-warning alert-dismissible" id="address-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Warning!</strong> Game could not be removed from the database. Please check if the game address is valid.</div></div>');
+                autoCloseAlert('#address-alert-msg', 10000);
+            }
+
+
+            // deletes player from the db
+            $('#post-delete').on("click", function () {
+
+                var address = $('#address').val();
+
+                if (address == "" || typeof address === "undefined") {
+                    displayGameNotRemoved();
+                }
+                else {
+                    $.ajax({
+                        type: "POST",
+                        url: "@Url.Action("Delete", "Play")",
+                        data: { address: address },
+                    })
+                        .success(function (response) {
+                            if (response == "True") {
+                                $('.address-alert').replaceWith('<div class="address-alert">﻿<div class="alert alert-success alert-dismissible" id="address-alert-msg"><button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button><strong>Success!</strong> Game <strong>' + address + '</strong> successfully removed from the database..</div></div>');
+                                autoCloseAlert('#address-alert-msg', 10000);
+                                updateStatisticsAddressList();
+                            }
+                            else {
+                                displayGameNotRemoved();
+                            }
+
+                            updateLog();
+                        })
+                        .error(function () {
+                            displayGameNotRemoved();
+                            updateLog();
+                        });
+                }
+                return false;
+            });
 
         });
 
