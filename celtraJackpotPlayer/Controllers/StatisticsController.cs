@@ -159,7 +159,8 @@ namespace celtraJackpotPlayer.Controllers
 
             Highcharts chartSelectedMachine = new Highcharts("chartSelectedMachine")
                 .InitChart(new Chart { PlotBackgroundColor = null, PlotBorderWidth = null, PlotShadow = false, SpacingTop = 0, SpacingBottom = 0, Height = 300 })
-                .SetTitle(new Title { Text = "Selection per Machine" })
+                //.SetTitle(new Title { Text = "Selection per Machine" })
+                .SetTitle(new Title { Text = "Sum of Machine Weights" })
                 .SetTooltip(new Tooltip { PointFormat = "{series.name}: <b>{point.percentage:.2f}%</b>" /*, percentageDecimals: 1*/ })
                 .SetCredits(new Credits { Enabled = false })
                 .SetPlotOptions(new PlotOptions
@@ -178,7 +179,17 @@ namespace celtraJackpotPlayer.Controllers
                     }
                 });
 
+            double[] sumProbMachine = new double[gameData.Machines];
+            for (int machine = 0; machine < gameData.Machines; machine++)
+                sumProbMachine[machine] = 0;
 
+            for (int sect = 0; sect < gameData.NumOfSections; sect++)
+            {
+                for (int machine = 0; machine < gameData.Machines; machine++)
+                    sumProbMachine[machine] += gameData.Probabilities[sect,machine];
+            }
+
+            /*
             double[] selectedMachine = new double[gameData.Machines];
 
             for (int sect = 0; sect < gameData.NumOfSections; sect++)
@@ -210,10 +221,13 @@ namespace celtraJackpotPlayer.Controllers
                 else
                     selectedMachine[idx] += 100.0 / gameData.NumOfSections;
             }
+            */
+
             object[] dataObject = new object[gameData.Machines];
 
             for (int machine = 0; machine < gameData.Machines; machine++)
-                dataObject[machine] = new object[] { "Machine " + ((machine + 1).ToString()), selectedMachine[machine] };
+                dataObject[machine] = new object[] { "Machine " + ((machine + 1).ToString()), sumProbMachine[machine] };
+                //dataObject[machine] = new object[] { "Machine " + ((machine + 1).ToString()), selectedMachine[machine] };
 
             chartSelectedMachine.SetSeries(new Series
             {
