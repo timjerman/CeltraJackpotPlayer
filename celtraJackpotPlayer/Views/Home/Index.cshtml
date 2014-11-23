@@ -128,6 +128,9 @@
 
             $('#circular-progress-main').hide();
 
+            // if the progress was not started on this page refresh after the computation elsewhere is finished
+            var startedOnThisPage = false;
+
             // at the begining: update log + check if there is already a game running
             updateLog();
             isPlayerPlaying();
@@ -149,8 +152,11 @@
                         else {
                             $('#circular-progress-main').hide();
                             $('#post-form').show();
-                            updateLog();
-                            updateStatisticsAddressList();
+                            if (!startedOnThisPage) {
+                                updateLog();
+                                updateStatisticsAddressList();
+                            }
+                            startedOnThisPage = false;
                         }
                     })
                     .error(function () {
@@ -174,6 +180,7 @@
 
                     $('#circular-progress-main').show();
                     setCircularProgress(0);
+                    startedOnThisPage = true;
 
                     $.ajax({
                         type: "POST",
