@@ -20,6 +20,13 @@ namespace celtraJackpotPlayer.Controllers
 
         public object Start(string address)
         {
+            if (address == null || address == "")
+            {
+                _SetPlayerPlayState(false);
+                _AddLogToDb("A non valid address was specified!", false);
+                return Content("ERR", "text/plain");
+            }
+
             _SetPlayerPlayState(true);
             _SetPlayerPlayProgress(0);
 
@@ -1089,6 +1096,9 @@ namespace celtraJackpotPlayer.Controllers
 
         public bool Delete(string address)
         {
+            if (address == null || address == "")
+                return false;
+
             address = Utilities.DataManipulation._PrepareAddress(address);
 
             var db = new GameContext();

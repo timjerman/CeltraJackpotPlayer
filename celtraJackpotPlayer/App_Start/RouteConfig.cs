@@ -14,6 +14,31 @@ namespace celtraJackpotPlayer
             routes.IgnoreRoute("{resource}.axd/{*pathInfo}");
 
             routes.MapRoute(
+                name: "startPlayer",
+                url: "Play/Start/{*address}",
+                defaults: new { controller = "Play", action = "Start", address = "" }
+            );
+
+            routes.MapRoute(
+                name: "deletePlayer",
+                url: "Play/Delete/{*address}",
+                defaults: new { controller = "Play", action = "Delete", address = "" }
+            );
+
+            routes.MapRoute(
+                name: "startPlayerShort",
+                url: "Play/{*address}",
+                defaults: new { controller = "Play", action = "Start", address = "" },
+                constraints: new { address = "^(?:(?!Log|PlayerProgress|PlayerPlaying|Delete|Start).)*$\r?\n?" }
+            );
+
+            routes.MapRoute(
+                name: "deletePlayerShort",
+                url: "Delete/{*address}",
+                defaults: new { controller = "Play", action = "Delete", address = "" }
+            );
+
+            routes.MapRoute(
                 name: "Default",
                 url: "{controller}/{action}/{id}",
                 defaults: new { controller = "Home", action = "Index", id = UrlParameter.Optional }

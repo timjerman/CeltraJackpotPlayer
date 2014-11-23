@@ -6,6 +6,8 @@
     <h2>@ViewBag.Title</h2>
 </div>
 
+<h2>Play</h2>
+
 <!-- form for submiting the game address -->
 <form class="form-horizontal" role="form" id="post-form">
     <div class="form-group">
@@ -128,11 +130,11 @@
 
             // at the begining: update log + check if there is already a game running
             updateLog();
-            isPlayerRunning();
+            isPlayerPlaying();
             updateStatisticsAddressList();
 
             // checks if the player is playing the game -> disable input if he is and show progress (prevent two games at the same time)
-            function isPlayerRunning() {
+            function isPlayerPlaying() {
 
                 $.ajax({
                     type: "POST",
@@ -148,6 +150,7 @@
                             $('#circular-progress-main').hide();
                             $('#post-form').show();
                             updateLog();
+                            updateStatisticsAddressList();
                         }
                     })
                     .error(function () {
@@ -198,7 +201,7 @@
                             displayBadAddress();
                         });
 
-                    setTimeout(isPlayerRunning, 500);
+                    setTimeout(isPlayerPlaying, 500);
                 }
 
                 return false;
@@ -213,7 +216,7 @@
                 })
                         .success(function (response) {
                             setCircularProgress(response);
-                            setTimeout(isPlayerRunning, 500);
+                            setTimeout(isPlayerPlaying, 500);
                         });
             }
 
