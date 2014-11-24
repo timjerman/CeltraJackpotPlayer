@@ -1,4 +1,5 @@
 Celtra Jackpot Player
 ==================
+November 2014
 
-The submission for the 2014 Celtra-FRI challenge
+This is the submission for the 2014 Celtra-FRI challenge (http://celtra-jackpot.com/)
