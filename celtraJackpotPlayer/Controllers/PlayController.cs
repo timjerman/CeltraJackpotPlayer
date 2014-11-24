@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -1034,8 +1035,15 @@ namespace celtraJackpotPlayer.Controllers
 
             try
             {
-                using (WebClient client = new WebClient())
-                    response = client.DownloadString(address);
+                //using (WebClient client = new WebClient())
+                //    response = client.DownloadString(address);
+                var request = (HttpWebRequest)WebRequest.Create(address);
+                request.Timeout = 10000;
+                using (var stream = request.GetResponse().GetResponseStream())
+                using (var reader = new StreamReader(stream))
+                {
+                    response = reader.ReadToEnd();
+                }
             }
             catch (WebException ex)
             {
