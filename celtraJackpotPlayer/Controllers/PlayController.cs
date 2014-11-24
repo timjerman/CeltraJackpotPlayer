@@ -28,6 +28,9 @@ namespace celtraJackpotPlayer.Controllers
                 return Content("ERR", "text/plain");
             }
 
+            if (_GetPlayerPlayState() == true)
+                return Content("Already running", "text/plain");
+
             _SetPlayerPlayState(true);
             _SetPlayerPlayProgress(0);
 
@@ -1124,7 +1127,7 @@ namespace celtraJackpotPlayer.Controllers
 
         public bool Delete(string address)
         {
-            if (address == null || address == "")
+            if (address == null || address == "" || _GetPlayerPlayState() == true)
                 return false;
 
             address = Utilities.DataManipulation._PrepareAddress(address);
